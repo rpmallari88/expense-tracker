@@ -8,12 +8,11 @@
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 20px; color: #333; }
     
-    /* Main Layout Grid: Places Batelco on the Right Side */
+    /* Main Layout Grid */
     .dashboard-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; max-width: 1050px; margin: 0 auto; }
     .main-panel { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
     .side-panel { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); height: fit-content; }
 
-    /* Responsive Design for Mobile */
     @media (max-width: 850px) {
       .dashboard-layout { grid-template-columns: 1fr; }
     }
@@ -30,6 +29,10 @@
     .card-value { font-size: 1.05rem; font-weight: bold; color: #d48806; }
 
     .form-group { margin-bottom: 12px; }
+    .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 12px 0; background: #fff1f0; padding: 8px 12px; border-radius: 6px; border: 1px solid #ffa39e; }
+    .checkbox-group input { width: auto; margin: 0; cursor: pointer; }
+    .checkbox-group label { margin: 0; cursor: pointer; font-weight: bold; color: #cf1322; }
+
     label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.9rem; }
     input, select, button { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
     button.submit-btn { background: #0070f3; color: white; font-weight: bold; border: none; cursor: pointer; margin-top: 10px; }
@@ -38,13 +41,16 @@
     .filter-section select { width: auto; padding: 6px 12px; }
 
     .transaction-list { margin-top: 15px; }
-    .tx-card { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
+    .tx-card { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; border-radius: 6px; }
+    .tx-card.is-emergency { background: #fff1f0; border-left: 4px solid #ff4d4f; }
     .tx-info { display: flex; flex-direction: column; }
     .tx-desc { font-weight: 600; }
     .tx-meta { font-size: 0.8rem; color: #666; }
     .tx-right { display: flex; align-items: center; gap: 8px; }
     .tx-amount { font-weight: bold; color: #d9381e; margin-right: 4px; }
     
+    .emergency-badge { background: #ff4d4f; color: white; font-size: 0.68rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; text-transform: uppercase; }
+
     .edit-btn { background: #faad14; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
     .edit-btn:hover { background: #d48806; }
     .delete-btn { background: #ff4d4f; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
@@ -70,11 +76,9 @@
 
 <div class="dashboard-layout">
   
-  <!-- LEFT PANEL: Main Tracker -->
   <div class="main-panel">
     <h1>💰 Expense Tracker</h1>
 
-    <!-- Month Picker Filter -->
     <div class="month-selector">
       <label for="monthPicker">📅 Selected Month:</label>
       <input type="month" id="monthPicker" onchange="applyFilters()">
@@ -125,6 +129,12 @@
           <option value="Withdraw">Withdraw</option>
         </select>
       </div>
+
+      <div class="checkbox-group">
+        <input type="checkbox" id="isEmergency">
+        <label for="isEmergency">🚨 Mark as Emergency Expense</label>
+      </div>
+
       <button type="submit" class="submit-btn">Add Expense</button>
     </form>
 
@@ -147,7 +157,6 @@
     </div>
   </div>
 
-  <!-- RIGHT PANEL: Batelco Breakdown -->
   <div class="side-panel">
     <div class="batelco-header">BATELCO</div>
     
@@ -209,7 +218,6 @@
 
 </div>
 
-<!-- Edit Transaction Modal -->
 <div class="modal-overlay" id="editModal">
   <div class="modal-content">
     <h3 style="margin-top:0;">✏️ Edit Transaction</h3>
@@ -236,6 +244,12 @@
           <option value="Withdraw">Withdraw</option>
         </select>
       </div>
+      
+      <div class="checkbox-group">
+        <input type="checkbox" id="editIsEmergency">
+        <label for="editIsEmergency">🚨 Mark as Emergency Expense</label>
+      </div>
+
       <div class="modal-actions">
         <button type="button" class="cancel-btn" onclick="closeEditModal()">Cancel</button>
         <button type="submit" class="submit-btn" style="margin-top:0;">Save Changes</button>
@@ -297,14 +311,15 @@
     let groceryCC = 0;
     let groceryCash = 0;
 
-    const emergencyItems = ['decathlon', 'virgin sim', 'anwar phones', 'ksa insurance', 'ksa tollgate'];
+    const legacyKeywords = ['decathlon', 'virgin sim', 'anwar phones', 'ksa insurance', 'ksa tollgate'];
 
     monthFilteredTransactions.forEach(tx => {
       const amt = Number(tx.amount) || 0;
       const desc = (tx.description || '').toLowerCase();
       const method = tx.payment_method || '';
 
-      const isEmergency = emergencyItems.some(item => desc.includes(item));
+      // Check explicit emergency flag OR legacy keywords
+      const isEmergency = tx.is_emergency === true || legacyKeywords.some(k => desc.includes(k));
       const isGas = desc.includes('gas') || desc.includes('bapco');
 
       if (method === 'Credit Card') {
@@ -364,19 +379,28 @@
       return;
     }
 
-    txContainer.innerHTML = finalFiltered.map(tx => `
-      <div class="tx-card">
-        <div class="tx-info">
-          <span class="tx-desc">${tx.description || 'No Description'}</span>
-          <span class="tx-meta">${tx.date || ''} • ${tx.payment_method || ''}</span>
+    const legacyKeywords = ['decathlon', 'virgin sim', 'anwar phones', 'ksa insurance', 'ksa tollgate'];
+
+    txContainer.innerHTML = finalFiltered.map(tx => {
+      const isEmerg = tx.is_emergency === true || legacyKeywords.some(k => (tx.description || '').toLowerCase().includes(k));
+
+      return `
+        <div class="tx-card ${isEmerg ? 'is-emergency' : ''}">
+          <div class="tx-info">
+            <span class="tx-desc">
+              ${tx.description || 'No Description'}
+              ${isEmerg ? '<span class="emergency-badge">Emergency</span>' : ''}
+            </span>
+            <span class="tx-meta">${tx.date || ''} • ${tx.payment_method || ''}</span>
+          </div>
+          <div class="tx-right">
+            <span class="tx-amount">${Number(tx.amount).toFixed(3)} BHD</span>
+            <button class="edit-btn" onclick="openEditModal('${tx.id}')">Edit</button>
+            <button class="delete-btn" onclick="deleteTransaction('${tx.id}')">Delete</button>
+          </div>
         </div>
-        <div class="tx-right">
-          <span class="tx-amount">${Number(tx.amount).toFixed(3)} BHD</span>
-          <button class="edit-btn" onclick="openEditModal('${tx.id}')">Edit</button>
-          <button class="delete-btn" onclick="deleteTransaction('${tx.id}')">Delete</button>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   function openEditModal(id) {
@@ -388,6 +412,7 @@
     document.getElementById('editDesc').value = tx.description;
     document.getElementById('editAmount').value = tx.amount;
     document.getElementById('editMethod').value = tx.payment_method;
+    document.getElementById('editIsEmergency').checked = tx.is_emergency === true;
 
     editModal.style.display = 'flex';
   }
@@ -403,6 +428,7 @@
     const description = document.getElementById('editDesc').value;
     const amount = parseFloat(document.getElementById('editAmount').value);
     const payment_method = document.getElementById('editMethod').value;
+    const is_emergency = document.getElementById('editIsEmergency').checked;
     const year_month = date.substring(0, 7);
 
     const { data, error } = await supabaseClient
@@ -412,6 +438,7 @@
         description: description, 
         amount: amount, 
         payment_method: payment_method, 
+        is_emergency: is_emergency,
         year_month: year_month 
       })
       .eq('id', id)
@@ -448,10 +475,11 @@
     const description = document.getElementById('desc').value;
     const amount = parseFloat(document.getElementById('amount').value);
     const payment_method = document.getElementById('method').value;
+    const is_emergency = document.getElementById('isEmergency').checked;
     const year_month = date.substring(0, 7);
 
     const { error } = await supabaseClient.from('transactions').insert([
-      { date, description, amount, payment_method, year_month }
+      { date, description, amount, payment_method, is_emergency, year_month }
     ]);
 
     if (error) {
