@@ -1,0 +1,87 @@
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 20px; color: #333; }
+
+.app-container { max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+h1 { text-align: center; margin-bottom: 15px; font-size: 1.5rem; }
+
+/* Navigation Tabs Header */
+.nav-tabs { display: flex; gap: 5px; background: #eef4ff; border-radius: 10px; padding: 5px; margin-bottom: 20px; border: 1px solid #d0e1fd; overflow-x: auto; }
+.tab-btn { flex: 1; padding: 10px 8px; border: none; background: transparent; font-weight: bold; font-size: 0.85rem; color: #0052cc; cursor: pointer; border-radius: 8px; transition: all 0.2s ease; text-align: center; white-space: nowrap; }
+.tab-btn.active { background: #0052cc; color: white; box-shadow: 0 2px 6px rgba(0,82,204,0.3); }
+
+/* Tab Content Views */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.month-selector { margin-bottom: 20px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+.month-selector label { font-weight: bold; color: #334155; margin: 0; }
+.month-selector input { width: auto; padding: 6px 12px; font-weight: bold; color: #0052cc; background: #fff; border: 1px solid #0052cc; border-radius: 6px; cursor: pointer; }
+
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.card { background: #fffae6; border: 1px solid #ffe58f; padding: 10px 14px; border-radius: 8px; }
+.card-title { font-size: 0.72rem; font-weight: bold; color: #8c6b00; text-transform: uppercase; margin-bottom: 2px; }
+.card-value { font-size: 1.05rem; font-weight: bold; color: #d48806; }
+
+/* Dashboard Header Highlights */
+.card-primary { background: #e6f7ff; border-color: #91d5ff; }
+.card-primary .card-title { color: #0050b3; }
+.card-primary .card-value { color: #0958d9; }
+
+.card-savings { background: #f6ffed; border-color: #b7eb8f; }
+.card-savings .card-title { color: #274e13; }
+.card-savings .card-value { color: #389e0d; }
+
+.form-group { margin-bottom: 12px; }
+.checkbox-group { display: flex; align-items: center; gap: 8px; margin: 12px 0; background: #fff1f0; padding: 8px 12px; border-radius: 6px; border: 1px solid #ffa39e; }
+.checkbox-group input { width: auto; margin: 0; cursor: pointer; }
+.checkbox-group label { margin: 0; cursor: pointer; font-weight: bold; color: #cf1322; }
+
+label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.9rem; }
+input, select, button { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+button.submit-btn { background: #0070f3; color: white; font-weight: bold; border: none; cursor: pointer; margin-top: 10px; }
+
+.filter-section { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
+.filter-section select { width: auto; padding: 6px 12px; }
+
+.transaction-list { margin-top: 10px; }
+.tx-card { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; border-radius: 6px; margin-bottom: 6px; }
+.tx-card.is-emergency { background: #fff1f0; border-left: 4px solid #ff4d4f; }
+.tx-info { display: flex; flex-direction: column; }
+.tx-desc { font-weight: 600; }
+.tx-meta { font-size: 0.8rem; color: #666; }
+.tx-right { display: flex; align-items: center; gap: 8px; }
+.tx-amount { font-weight: bold; color: #d9381e; margin-right: 4px; }
+
+.emergency-badge { background: #ff4d4f; color: white; font-size: 0.68rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; text-transform: uppercase; }
+
+.edit-btn { background: #faad14; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
+.edit-btn:hover { background: #d48806; }
+.delete-btn { background: #ff4d4f; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
+.delete-btn:hover { background: #d9363e; }
+
+/* Modal Styles */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 450px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 15px; }
+.modal-actions button { width: 50%; }
+.cancel-btn { background: #8c8c8c !important; }
+
+/* Batelco Card Styling */
+.batelco-card { background: #fff; padding: 10px 5px; }
+.batelco-header { font-weight: bold; font-size: 1.1rem; margin-bottom: 12px; border-bottom: 2px solid #333; padding-bottom: 4px; }
+.batelco-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 0.9rem; }
+.batelco-row input { width: 100px; padding: 6px 8px; text-align: right; font-size: 0.9rem; }
+.batelco-highlight-gold { background: #fffbe6; font-weight: bold; border-top: 1px solid #ffe58f; border-bottom: 1px solid #ffe58f; padding: 10px 8px; margin: 4px 0; border-radius: 4px; }
+.batelco-highlight-blue { background: #e6f7ff; font-weight: bold; border-top: 1px solid #91d5ff; border-bottom: 1px solid #91d5ff; padding: 10px 8px; margin: 4px 0; border-radius: 4px; }
+.batelco-subheading { font-weight: bold; color: #555; margin-top: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 2px; font-size: 0.85rem; }
+
+/* Bills Checklist Table Styling */
+.bills-table-wrapper { overflow-x: auto; margin-top: 10px; }
+.bills-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left; }
+.bills-table th, .bills-table td { padding: 8px 10px; border: 1px solid #e2e8f0; }
+.bills-table th { background: #1e293b; color: white; font-weight: bold; text-transform: uppercase; font-size: 0.78rem; }
+.bills-table tr.category-header { background: #f1f5f9; font-weight: bold; color: #475569; }
+.bills-table td.fixed-val { color: #0284c7; font-weight: bold; }
+.bills-table td.dynamic-val { color: #059669; font-weight: bold; }
+.bills-table tr.total-row { background: #fef08a; font-weight: bold; font-size: 0.95rem; }
+.bills-table tr.extras-row { background: #cbd5e1; font-weight: bold; font-size: 0.95rem; }

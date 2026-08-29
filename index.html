@@ -3,77 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Monthly Expense Tracker</title>
+  <title>Monthly Expense Tracker & Bills Checklist</title>
+  <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 20px; color: #333; }
-    
-    .app-container { max-width: 600px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-
-    h1 { text-align: center; margin-bottom: 15px; font-size: 1.5rem; }
-    
-    /* Navigation Tabs Header */
-    .nav-tabs { display: flex; justify-content: space-around; background: #eef4ff; border-radius: 10px; padding: 5px; margin-bottom: 20px; border: 1px solid #d0e1fd; }
-    .tab-btn { flex: 1; padding: 10px 0; border: none; background: transparent; font-weight: bold; font-size: 0.9rem; color: #0052cc; cursor: pointer; border-radius: 8px; transition: all 0.2s ease; text-align: center; }
-    .tab-btn.active { background: #0052cc; color: white; box-shadow: 0 2px 6px rgba(0,82,204,0.3); }
-
-    /* Tab Content Views */
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-
-    .month-selector { margin-bottom: 20px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
-    .month-selector label { font-weight: bold; color: #334155; margin: 0; }
-    .month-selector input { width: auto; padding: 6px 12px; font-weight: bold; color: #0052cc; background: #fff; border: 1px solid #0052cc; border-radius: 6px; cursor: pointer; }
-
-    .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-    .card { background: #fffae6; border: 1px solid #ffe58f; padding: 10px 14px; border-radius: 8px; }
-    .card-title { font-size: 0.72rem; font-weight: bold; color: #8c6b00; text-transform: uppercase; margin-bottom: 2px; }
-    .card-value { font-size: 1.05rem; font-weight: bold; color: #d48806; }
-
-    .form-group { margin-bottom: 12px; }
-    .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 12px 0; background: #fff1f0; padding: 8px 12px; border-radius: 6px; border: 1px solid #ffa39e; }
-    .checkbox-group input { width: auto; margin: 0; cursor: pointer; }
-    .checkbox-group label { margin: 0; cursor: pointer; font-weight: bold; color: #cf1322; }
-
-    label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.9rem; }
-    input, select, button { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
-    button.submit-btn { background: #0070f3; color: white; font-weight: bold; border: none; cursor: pointer; margin-top: 10px; }
-    
-    .filter-section { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
-    .filter-section select { width: auto; padding: 6px 12px; }
-
-    .transaction-list { margin-top: 10px; }
-    .tx-card { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; border-radius: 6px; margin-bottom: 6px; }
-    .tx-card.is-emergency { background: #fff1f0; border-left: 4px solid #ff4d4f; }
-    .tx-info { display: flex; flex-direction: column; }
-    .tx-desc { font-weight: 600; }
-    .tx-meta { font-size: 0.8rem; color: #666; }
-    .tx-right { display: flex; align-items: center; gap: 8px; }
-    .tx-amount { font-weight: bold; color: #d9381e; margin-right: 4px; }
-    
-    .emergency-badge { background: #ff4d4f; color: white; font-size: 0.68rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; text-transform: uppercase; }
-
-    .edit-btn { background: #faad14; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
-    .edit-btn:hover { background: #d48806; }
-    .delete-btn { background: #ff4d4f; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
-    .delete-btn:hover { background: #d9363e; }
-
-    /* Modal Styles */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
-    .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 450px; }
-    .modal-actions { display: flex; gap: 10px; margin-top: 15px; }
-    .modal-actions button { width: 50%; }
-    .cancel-btn { background: #8c8c8c !important; }
-
-    /* Batelco Card Styling */
-    .batelco-card { background: #fff; padding: 10px 5px; }
-    .batelco-header { font-weight: bold; font-size: 1.1rem; margin-bottom: 12px; border-bottom: 2px solid #333; padding-bottom: 4px; }
-    .batelco-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 0.9rem; }
-    .batelco-row input { width: 100px; padding: 6px 8px; text-align: right; font-size: 0.9rem; }
-    .batelco-highlight-gold { background: #fffbe6; font-weight: bold; border-top: 1px solid #ffe58f; border-bottom: 1px solid #ffe58f; padding: 10px 8px; margin: 4px 0; border-radius: 4px; }
-    .batelco-highlight-blue { background: #e6f7ff; font-weight: bold; border-top: 1px solid #91d5ff; border-bottom: 1px solid #91d5ff; padding: 10px 8px; margin: 4px 0; border-radius: 4px; }
-    .batelco-subheading { font-weight: bold; color: #555; margin-top: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 2px; font-size: 0.85rem; }
-  </style>
 </head>
 <body>
 
@@ -84,24 +16,33 @@
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="switchTab('dashboardTab', this)">🏠 Dashboard</button>
     <button class="tab-btn" onclick="switchTab('transactionsTab', this)">📋 Transactions</button>
+    <button class="tab-btn" onclick="switchTab('billsTab', this)">🏦 KFH</button>
     <button class="tab-btn" onclick="switchTab('batelcoTab', this)">📱 Batelco</button>
   </div>
 
-  <!-- TAB 1: DASHBOARD (Summary & Add Form Only) -->
+  <!-- TAB 1: DASHBOARD -->
   <div id="dashboardTab" class="tab-content active">
-    <!-- Month Picker Filter -->
     <div class="month-selector">
       <label for="monthPicker">📅 Selected Month:</label>
-      <input type="month" id="monthPicker" onchange="applyFilters()">
+      <input type="month" id="monthPicker" onchange="syncAndApplyFilters(this.value)">
     </div>
 
     <div class="summary-grid">
+      <div class="card card-primary">
+        <div class="card-title">TOTAL EXPENSES</div>
+        <div class="card-value" id="dashTotalExpenses">BHD 0.000</div>
+      </div>
+      <div class="card card-savings">
+        <div class="card-title">TOTAL SAVINGS</div>
+        <div class="card-value" id="dashTotalSavings">BHD 0.000</div>
+      </div>
+
       <div class="card" style="grid-column: span 2;">
         <div class="card-title">CC TO PAY</div>
         <div class="card-value" id="kpiCC">BHD 0.000</div>
       </div>
       <div class="card">
-        <div class="card-title">EMERGENCY (BBK TO AUB)</div>
+        <div class="card-title">EMERGENCY (BBK TO KFH)</div>
         <div class="card-value" id="kpiEmergency">BHD 0.000</div>
       </div>
       <div class="card">
@@ -141,7 +82,6 @@
         </select>
       </div>
 
-      <!-- Emergency Checkbox -->
       <div class="checkbox-group">
         <input type="checkbox" id="isEmergency">
         <label for="isEmergency">🚨 Mark as Emergency Expense</label>
@@ -173,7 +113,116 @@
     </div>
   </div>
 
-  <!-- TAB 3: BATELCO BREAKDOWN -->
+  <!-- TAB 3: KFH - BILLS CHECKLIST -->
+  <div id="billsTab" class="tab-content">
+    <div class="month-selector">
+      <label for="kfhMonthPicker">📅 Select Month:</label>
+      <input type="month" id="kfhMonthPicker" onchange="syncAndApplyFilters(this.value)">
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <h3 style="margin:0;">🏦 KFH - Bills Checklist</h3>
+      <span id="billsMonthLabel" style="font-weight:bold; color:#0052cc;"></span>
+    </div>
+
+    <div class="bills-table-wrapper">
+      <table class="bills-table">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Bill Description</th>
+            <th style="text-align:right;">Monthly Budget</th>
+            <th style="text-align:right;">Amount (BHD)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- HOUSEHOLD -->
+          <tr class="category-header"><td colspan="4">HOUSEHOLD</td></tr>
+          <tr>
+            <td>Household</td>
+            <td>Rent - Benefitpay</td>
+            <td style="text-align:right;">280.000</td>
+            <td style="text-align:right;" class="fixed-val">280.000</td>
+          </tr>
+          <tr>
+            <td rowspan="2" style="vertical-align: middle;">Household</td>
+            <td>Grocery - CC</td>
+            <td rowspan="2" style="text-align:right; vertical-align: middle;" class="fixed-val">100.000</td>
+            <td style="text-align:right;" class="dynamic-val" id="billGroceryCC">0.000</td>
+          </tr>
+          <tr>
+            <td>Cash, Benefitpay</td>
+            <td style="text-align:right;" class="dynamic-val" id="billGroceryCash">0.000</td>
+          </tr>
+          <tr>
+            <td>Household</td>
+            <td>Batelco (+remaining div 3)</td>
+            <td style="text-align:right;">38.000</td>
+            <td style="text-align:right;" class="dynamic-val" id="billBatelco">37.667</td>
+          </tr>
+
+          <!-- LOAN -->
+          <tr class="category-header"><td colspan="4">LOAN</td></tr>
+          <tr>
+            <td>Loan</td>
+            <td>Car</td>
+            <td style="text-align:right;">123.000</td>
+            <td style="text-align:right;" class="fixed-val">123.000</td>
+          </tr>
+
+          <!-- MAINTENANCE -->
+          <tr class="category-header"><td colspan="4">MAINTENANCE</td></tr>
+          <tr>
+            <td>Maintenance</td>
+            <td>Car petrol - Credit card</td>
+            <td style="text-align:right;">35.000</td>
+            <td style="text-align:right;" class="dynamic-val" id="billGas">0.000</td>
+          </tr>
+          <tr>
+            <td>Maintenance</td>
+            <td>Car cleaning - Benefitpay</td>
+            <td style="text-align:right;">8.000</td>
+            <td style="text-align:right;" class="fixed-val">8.000</td>
+          </tr>
+
+          <!-- SAVINGS -->
+          <tr class="category-header"><td colspan="4">SAVINGS</td></tr>
+          <tr>
+            <td>Savings</td>
+            <td>COOP (MONTH END)</td>
+            <td style="text-align:right;">31.000</td>
+            <td style="text-align:right;" class="fixed-val" id="billCoop">31.000</td>
+          </tr>
+          <tr>
+            <td>Savings</td>
+            <td>HSBC Savings</td>
+            <td style="text-align:right;">100.000</td>
+            <td style="text-align:right;" class="fixed-val">100.000</td>
+          </tr>
+          <tr>
+            <td>Savings</td>
+            <td>BBK Emergency fund</td>
+            <td style="text-align:right;">100.000</td>
+            <td style="text-align:right;" class="fixed-val">100.000</td>
+          </tr>
+
+          <!-- TOTALS -->
+          <tr class="total-row">
+            <td colspan="2">TOTAL EXPENSES</td>
+            <td style="text-align:right;">815.000</td>
+            <td style="text-align:right;" id="billMonthlyTotal">0.000</td>
+          </tr>
+          <tr class="extras-row">
+            <td colspan="2">TOTAL SAVINGS</td>
+            <td style="text-align:right;">6.000</td>
+            <td style="text-align:right;" id="billExtras">0.000</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 4: BATELCO BREAKDOWN -->
   <div id="batelcoTab" class="tab-content">
     <div class="batelco-card">
       <div class="batelco-header">BATELCO BREAKDOWN</div>
@@ -265,7 +314,6 @@
         </select>
       </div>
       
-      <!-- Edit Emergency Checkbox -->
       <div class="checkbox-group">
         <input type="checkbox" id="editIsEmergency">
         <label for="editIsEmergency">🚨 Mark as Emergency Expense</label>
@@ -279,259 +327,6 @@
   </div>
 </div>
 
-<script>
-  const SUPABASE_URL = "https://rdvrrayllyvvbaojycis.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_yw0QInSEFsxTUlm5r7uTpA_Gn6LeWN2"; // Put your actual anon public key here
-
-  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const form = document.getElementById('expenseForm');
-  const editForm = document.getElementById('editForm');
-  const dateInput = document.getElementById('date');
-  const monthPicker = document.getElementById('monthPicker');
-  const txContainer = document.getElementById('transactionsContainer');
-  const editModal = document.getElementById('editModal');
-  
-  let allTransactions = [];
-  let monthFilteredTransactions = [];
-
-  // Default to CURRENT month
-  const today = new Date();
-  const currentYearMonth = today.toISOString().substring(0, 7);
-  monthPicker.value = currentYearMonth;
-  dateInput.value = today.toISOString().split('T')[0];
-
-  function switchTab(tabId, element) {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    
-    document.getElementById(tabId).classList.add('active');
-    element.classList.add('active');
-  }
-
-  async function fetchTransactions() {
-    const { data, error } = await supabaseClient
-      .from('transactions')
-      .select('*')
-      .order('date', { ascending: false });
-
-    if (error) {
-      txContainer.innerHTML = `<p style="color:red;">Error loading: ${error.message}</p>`;
-      return;
-    }
-
-    allTransactions = data || [];
-    applyFilters();
-  }
-
-  function applyFilters() {
-    const selectedMonth = monthPicker.value;
-
-    monthFilteredTransactions = allTransactions.filter(tx => {
-      if (!tx.date) return false;
-      return tx.date.substring(0, 7) === selectedMonth;
-    });
-
-    calculateSummaries();
-    renderTransactions();
-  }
-
-  function isEmergencyTx(tx) {
-    const legacyKeywords = ['decathlon', 'virgin sim', 'anwar phones', 'ksa insurance', 'ksa tollgate'];
-    const desc = (tx.description || '').toLowerCase();
-    return tx.is_emergency === true || legacyKeywords.some(k => desc.includes(k));
-  }
-
-  function calculateSummaries() {
-    let ccTotal = 0;
-    let emergencyTotal = 0;
-    let gasTotal = 0;
-    let groceryCC = 0;
-    let groceryCash = 0;
-
-    monthFilteredTransactions.forEach(tx => {
-      const amt = Number(tx.amount) || 0;
-      const desc = (tx.description || '').toLowerCase();
-      const method = tx.payment_method || '';
-
-      const isEmergency = isEmergencyTx(tx);
-      const isGas = desc.includes('gas') || desc.includes('bapco');
-
-      if (method === 'Credit Card') {
-        ccTotal += amt;
-
-        if (isEmergency) {
-          emergencyTotal += amt;
-        } else if (isGas) {
-          gasTotal += amt;
-        } else {
-          groceryCC += amt;
-        }
-      } else {
-        if (isEmergency) {
-          emergencyTotal += amt;
-        } else {
-          groceryCash += amt;
-        }
-      }
-    });
-
-    document.getElementById('kpiCC').innerText = `BHD ${ccTotal.toFixed(3)}`;
-    document.getElementById('kpiEmergency').innerText = `BHD ${emergencyTotal.toFixed(3)}`;
-    document.getElementById('kpiGas').innerText = `BHD ${gasTotal.toFixed(3)}`;
-    document.getElementById('kpiGroceryCC').innerText = `BHD ${groceryCC.toFixed(3)}`;
-    document.getElementById('kpiGroceryCash').innerText = `BHD ${groceryCash.toFixed(3)}`;
-  }
-
-  function calculateBatelco() {
-    const share = parseFloat(document.getElementById('bShare').value) || 0;
-    const installment = parseFloat(document.getElementById('bInstallment').value) || 0;
-    const dolp = parseFloat(document.getElementById('bDolp').value) || 0;
-    const monse = parseFloat(document.getElementById('bMonse').value) || 0;
-    const offset = parseFloat(document.getElementById('bOffset').value) || 0;
-
-    const fixedPayable = share + installment;
-    const subTotal = dolp + monse;
-    const total = fixedPayable + subTotal;
-    const divBy3 = total / 3;
-    const offsetTotal = offset;
-    const sendToJoy = total - offsetTotal;
-
-    document.getElementById('bFixedPayable').innerText = `BHD ${fixedPayable.toFixed(3)}`;
-    document.getElementById('bSubTotal').innerText = `BHD ${subTotal.toFixed(3)}`;
-    document.getElementById('bTotal').innerText = `BHD ${total.toFixed(3)}`;
-    document.getElementById('bDivBy3').innerText = `BHD ${divBy3.toFixed(3)}`;
-    document.getElementById('bOffsetTotal').innerText = `BHD ${offsetTotal.toFixed(3)}`;
-    document.getElementById('bSendToJoy').innerText = `BHD ${sendToJoy.toFixed(3)}`;
-  }
-
-  function renderTransactions() {
-    const methodFilter = document.getElementById('filterMethod').value;
-    
-    const finalFiltered = monthFilteredTransactions.filter(tx => {
-      if (methodFilter === 'ALL') return true;
-      if (methodFilter === 'EMERGENCY') return isEmergencyTx(tx);
-      return tx.payment_method === methodFilter;
-    });
-
-    if (finalFiltered.length === 0) {
-      txContainer.innerHTML = '<p style="text-align:center; color:#888; padding:20px;">No transactions found.</p>';
-      return;
-    }
-
-    txContainer.innerHTML = finalFiltered.map(tx => {
-      const isEmerg = isEmergencyTx(tx);
-
-      return `
-        <div class="tx-card ${isEmerg ? 'is-emergency' : ''}">
-          <div class="tx-info">
-            <span class="tx-desc">
-              ${tx.description || 'No Description'}
-              ${isEmerg ? '<span class="emergency-badge">Emergency</span>' : ''}
-            </span>
-            <span class="tx-meta">${tx.date || ''} • ${tx.payment_method || ''}</span>
-          </div>
-          <div class="tx-right">
-            <span class="tx-amount">${Number(tx.amount).toFixed(3)} BHD</span>
-            <button class="edit-btn" onclick="openEditModal('${tx.id}')">Edit</button>
-            <button class="delete-btn" onclick="deleteTransaction('${tx.id}')">Delete</button>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  function openEditModal(id) {
-    const tx = allTransactions.find(t => t.id === id);
-    if (!tx) return;
-
-    document.getElementById('editId').value = tx.id;
-    document.getElementById('editDate').value = tx.date;
-    document.getElementById('editDesc').value = tx.description;
-    document.getElementById('editAmount').value = tx.amount;
-    document.getElementById('editMethod').value = tx.payment_method;
-    document.getElementById('editIsEmergency').checked = isEmergencyTx(tx);
-
-    editModal.style.display = 'flex';
-  }
-
-  function closeEditModal() {
-    editModal.style.display = 'none';
-  }
-
-  editForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('editId').value;
-    const date = document.getElementById('editDate').value;
-    const description = document.getElementById('editDesc').value;
-    const amount = parseFloat(document.getElementById('editAmount').value);
-    const payment_method = document.getElementById('editMethod').value;
-    const is_emergency = document.getElementById('editIsEmergency').checked;
-    const year_month = date.substring(0, 7);
-
-    const { data, error } = await supabaseClient
-      .from('transactions')
-      .update({ 
-        date: date, 
-        description: description, 
-        amount: amount, 
-        payment_method: payment_method, 
-        is_emergency: is_emergency,
-        year_month: year_month 
-      })
-      .eq('id', id)
-      .select();
-
-    if (error) {
-      alert("Error updating transaction: " + error.message);
-      console.error("Supabase Update Error:", error);
-    } else {
-      closeEditModal();
-      monthPicker.value = year_month;
-      await fetchTransactions();
-    }
-  });
-
-  async function deleteTransaction(id) {
-    if (!confirm("Are you sure you want to delete this expense?")) return;
-
-    const { error } = await supabaseClient
-      .from('transactions')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      alert("Error deleting transaction: " + error.message);
-    } else {
-      fetchTransactions();
-    }
-  }
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const date = dateInput.value;
-    const description = document.getElementById('desc').value;
-    const amount = parseFloat(document.getElementById('amount').value);
-    const payment_method = document.getElementById('method').value;
-    const is_emergency = document.getElementById('isEmergency').checked;
-    const year_month = date.substring(0, 7);
-
-    const { error } = await supabaseClient.from('transactions').insert([
-      { date, description, amount, payment_method, is_emergency, year_month }
-    ]);
-
-    if (error) {
-      alert("Error adding expense: " + error.message);
-    } else {
-      form.reset();
-      dateInput.value = new Date().toISOString().split('T')[0];
-      monthPicker.value = year_month;
-      fetchTransactions();
-    }
-  });
-
-  fetchTransactions();
-  calculateBatelco();
-</script>
-
+<script src="app.js"></script>
 </body>
 </html>
