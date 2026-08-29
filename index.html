@@ -76,9 +76,11 @@
 
 <div class="dashboard-layout">
   
+  <!-- LEFT PANEL: Main Tracker -->
   <div class="main-panel">
     <h1>💰 Expense Tracker</h1>
 
+    <!-- Month Picker Filter -->
     <div class="month-selector">
       <label for="monthPicker">📅 Selected Month:</label>
       <input type="month" id="monthPicker" onchange="applyFilters()">
@@ -130,6 +132,7 @@
         </select>
       </div>
 
+      <!-- Emergency Checkbox -->
       <div class="checkbox-group">
         <input type="checkbox" id="isEmergency">
         <label for="isEmergency">🚨 Mark as Emergency Expense</label>
@@ -144,6 +147,7 @@
         <label for="filterMethod" style="display:inline; font-size:0.85rem; margin-right:5px;">Filter:</label>
         <select id="filterMethod" onchange="renderTransactions()">
           <option value="ALL">All Methods</option>
+          <option value="EMERGENCY">🚨 Emergency Only</option>
           <option value="Credit Card">Credit Card</option>
           <option value="BenefitPay">BenefitPay</option>
           <option value="Cash">Cash</option>
@@ -157,6 +161,7 @@
     </div>
   </div>
 
+  <!-- RIGHT PANEL: Batelco Breakdown -->
   <div class="side-panel">
     <div class="batelco-header">BATELCO</div>
     
@@ -218,6 +223,7 @@
 
 </div>
 
+<!-- Edit Transaction Modal -->
 <div class="modal-overlay" id="editModal">
   <div class="modal-content">
     <h3 style="margin-top:0;">✏️ Edit Transaction</h3>
@@ -245,6 +251,7 @@
         </select>
       </div>
       
+      <!-- Edit Emergency Checkbox -->
       <div class="checkbox-group">
         <input type="checkbox" id="editIsEmergency">
         <label for="editIsEmergency">🚨 Mark as Emergency Expense</label>
@@ -273,8 +280,10 @@
   let allTransactions = [];
   let monthFilteredTransactions = [];
 
+  // Automatically default monthPicker to CURRENT month (e.g., YYYY-MM)
   const today = new Date();
-  monthPicker.value = "2026-07"; // Defaults to 2026-07
+  const currentYearMonth = today.toISOString().substring(0, 7);
+  monthPicker.value = currentYearMonth;
   dateInput.value = today.toISOString().split('T')[0];
 
   async function fetchTransactions() {
@@ -304,6 +313,12 @@
     renderTransactions();
   }
 
+  function isEmergencyTx(tx) {
+    const legacyKeywords = ['decathlon', 'virgin sim', 'anwar phones', 'ksa insurance', 'ksa tollgate'];
+    const desc = (tx.description || '').toLowerCase();
+    return tx.is_emergency === true || legacyKeywords.some(k => desc.includes(k));
+  }
+
   function calculateSummaries() {
     let ccTotal = 0;
     let emergencyTotal = 0;
@@ -311,15 +326,12 @@
     let groceryCC = 0;
     let groceryCash = 0;
 
-    const legacyKeywords = ['decathlon', 'virgin sim', 'anwar phones', 'ksa insurance', 'ksa tollgate'];
-
     monthFilteredTransactions.forEach(tx => {
       const amt = Number(tx.amount) || 0;
       const desc = (tx.description || '').toLowerCase();
       const method = tx.payment_method || '';
 
-      // Check explicit emergency flag OR legacy keywords
-      const isEmergency = tx.is_emergency === true || legacyKeywords.some(k => desc.includes(k));
+      const isEmergency = isEmergencyTx(tx);
       const isGas = desc.includes('gas') || desc.includes('bapco');
 
       if (method === 'Credit Card') {
@@ -372,17 +384,20 @@
 
   function renderTransactions() {
     const methodFilter = document.getElementById('filterMethod').value;
-    const finalFiltered = monthFilteredTransactions.filter(tx => methodFilter === 'ALL' || tx.payment_method === methodFilter);
+    
+    const finalFiltered = monthFilteredTransactions.filter(tx => {
+      if (methodFilter === 'ALL') return true;
+      if (methodFilter === 'EMERGENCY') return isEmergencyTx(tx);
+      return tx.payment_method === methodFilter;
+    });
 
     if (finalFiltered.length === 0) {
-      txContainer.innerHTML = '<p style="text-align:center; color:#888; padding:20px;">No transactions found for this month.</p>';
+      txContainer.innerHTML = '<p style="text-align:center; color:#888; padding:20px;">No transactions found.</p>';
       return;
     }
 
-    const legacyKeywords = ['decathlon', 'virgin sim', 'anwar phones', 'ksa insurance', 'ksa tollgate'];
-
     txContainer.innerHTML = finalFiltered.map(tx => {
-      const isEmerg = tx.is_emergency === true || legacyKeywords.some(k => (tx.description || '').toLowerCase().includes(k));
+      const isEmerg = isEmergencyTx(tx);
 
       return `
         <div class="tx-card ${isEmerg ? 'is-emergency' : ''}">
@@ -412,7 +427,7 @@
     document.getElementById('editDesc').value = tx.description;
     document.getElementById('editAmount').value = tx.amount;
     document.getElementById('editMethod').value = tx.payment_method;
-    document.getElementById('editIsEmergency').checked = tx.is_emergency === true;
+    document.getElementById('editIsEmergency').checked = isEmergencyTx(tx);
 
     editModal.style.display = 'flex';
   }
