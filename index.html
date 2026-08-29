@@ -8,19 +8,21 @@
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 20px; color: #333; }
     
-    /* Main Layout Grid */
-    .dashboard-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; max-width: 1050px; margin: 0 auto; }
-    .main-panel { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-    .side-panel { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); height: fit-content; }
+    .app-container { max-width: 600px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 
-    @media (max-width: 850px) {
-      .dashboard-layout { grid-template-columns: 1fr; }
-    }
-
-    h1 { text-align: center; margin-bottom: 20px; font-size: 1.5rem; }
+    h1 { text-align: center; margin-bottom: 15px; font-size: 1.5rem; }
     
-    .month-selector { margin-bottom: 20px; background: #eef4ff; padding: 12px; border-radius: 8px; border: 1px solid #d0e1fd; display: flex; align-items: center; justify-content: space-between; }
-    .month-selector label { font-weight: bold; color: #0052cc; margin: 0; }
+    /* Navigation Tabs Header */
+    .nav-tabs { display: flex; justify-content: space-around; background: #eef4ff; border-radius: 10px; padding: 5px; margin-bottom: 20px; border: 1px solid #d0e1fd; }
+    .tab-btn { flex: 1; padding: 10px 0; border: none; background: transparent; font-weight: bold; font-size: 0.9rem; color: #0052cc; cursor: pointer; border-radius: 8px; transition: all 0.2s ease; text-align: center; }
+    .tab-btn.active { background: #0052cc; color: white; box-shadow: 0 2px 6px rgba(0,82,204,0.3); }
+
+    /* Tab Content Views */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .month-selector { margin-bottom: 20px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+    .month-selector label { font-weight: bold; color: #334155; margin: 0; }
     .month-selector input { width: auto; padding: 6px 12px; font-weight: bold; color: #0052cc; background: #fff; border: 1px solid #0052cc; border-radius: 6px; cursor: pointer; }
 
     .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
@@ -37,11 +39,11 @@
     input, select, button { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
     button.submit-btn { background: #0070f3; color: white; font-weight: bold; border: none; cursor: pointer; margin-top: 10px; }
     
-    .filter-section { margin-top: 25px; padding-top: 15px; border-top: 2px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .filter-section { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
     .filter-section select { width: auto; padding: 6px 12px; }
 
-    .transaction-list { margin-top: 15px; }
-    .tx-card { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; border-radius: 6px; }
+    .transaction-list { margin-top: 10px; }
+    .tx-card { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; border-radius: 6px; margin-bottom: 6px; }
     .tx-card.is-emergency { background: #fff1f0; border-left: 4px solid #ff4d4f; }
     .tx-info { display: flex; flex-direction: column; }
     .tx-desc { font-weight: 600; }
@@ -63,23 +65,30 @@
     .modal-actions button { width: 50%; }
     .cancel-btn { background: #8c8c8c !important; }
 
-    /* Batelco Excel Card Styling */
+    /* Batelco Card Styling */
+    .batelco-card { background: #fff; padding: 10px 5px; }
     .batelco-header { font-weight: bold; font-size: 1.1rem; margin-bottom: 12px; border-bottom: 2px solid #333; padding-bottom: 4px; }
-    .batelco-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 0.88rem; }
-    .batelco-row input { width: 95px; padding: 4px 8px; text-align: right; font-size: 0.88rem; }
-    .batelco-highlight-gold { background: #fffbe6; font-weight: bold; border-top: 1px solid #ffe58f; border-bottom: 1px solid #ffe58f; padding: 8px; margin: 4px 0; }
-    .batelco-highlight-blue { background: #e6f7ff; font-weight: bold; border-top: 1px solid #91d5ff; border-bottom: 1px solid #91d5ff; padding: 8px; margin: 4px 0; }
-    .batelco-subheading { font-weight: bold; color: #555; margin-top: 12px; border-bottom: 1px dashed #ccc; padding-bottom: 2px; font-size: 0.82rem; }
+    .batelco-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 0.9rem; }
+    .batelco-row input { width: 100px; padding: 6px 8px; text-align: right; font-size: 0.9rem; }
+    .batelco-highlight-gold { background: #fffbe6; font-weight: bold; border-top: 1px solid #ffe58f; border-bottom: 1px solid #ffe58f; padding: 10px 8px; margin: 4px 0; border-radius: 4px; }
+    .batelco-highlight-blue { background: #e6f7ff; font-weight: bold; border-top: 1px solid #91d5ff; border-bottom: 1px solid #91d5ff; padding: 10px 8px; margin: 4px 0; border-radius: 4px; }
+    .batelco-subheading { font-weight: bold; color: #555; margin-top: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 2px; font-size: 0.85rem; }
   </style>
 </head>
 <body>
 
-<div class="dashboard-layout">
-  
-  <!-- LEFT PANEL: Main Tracker -->
-  <div class="main-panel">
-    <h1>💰 Expense Tracker</h1>
+<div class="app-container">
+  <h1>💰 Expense Tracker</h1>
 
+  <!-- Navigation Bar -->
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('dashboardTab', this)">🏠 Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('transactionsTab', this)">📋 Transactions</button>
+    <button class="tab-btn" onclick="switchTab('batelcoTab', this)">📱 Batelco</button>
+  </div>
+
+  <!-- TAB 1: DASHBOARD (Summary & Add Form Only) -->
+  <div id="dashboardTab" class="tab-content active">
     <!-- Month Picker Filter -->
     <div class="month-selector">
       <label for="monthPicker">📅 Selected Month:</label>
@@ -140,9 +149,12 @@
 
       <button type="submit" class="submit-btn">Add Expense</button>
     </form>
+  </div>
 
+  <!-- TAB 2: TRANSACTIONS LIST -->
+  <div id="transactionsTab" class="tab-content">
     <div class="filter-section">
-      <h3 style="margin:0;">Transactions</h3>
+      <h3 style="margin:0;">Records</h3>
       <div>
         <label for="filterMethod" style="display:inline; font-size:0.85rem; margin-right:5px;">Filter:</label>
         <select id="filterMethod" onchange="renderTransactions()">
@@ -161,63 +173,65 @@
     </div>
   </div>
 
-  <!-- RIGHT PANEL: Batelco Breakdown -->
-  <div class="side-panel">
-    <div class="batelco-header">BATELCO</div>
-    
-    <div class="batelco-row">
-      <span>SHARE</span>
-      <input type="number" step="0.001" id="bShare" value="27.500" oninput="calculateBatelco()">
-    </div>
-    <div class="batelco-row">
-      <span>INSTALLMENT</span>
-      <input type="number" step="0.001" id="bInstallment" value="10.167" oninput="calculateBatelco()">
-    </div>
+  <!-- TAB 3: BATELCO BREAKDOWN -->
+  <div id="batelcoTab" class="tab-content">
+    <div class="batelco-card">
+      <div class="batelco-header">BATELCO BREAKDOWN</div>
+      
+      <div class="batelco-row">
+        <span>SHARE</span>
+        <input type="number" step="0.001" id="bShare" value="27.500" oninput="calculateBatelco()">
+      </div>
+      <div class="batelco-row">
+        <span>INSTALLMENT</span>
+        <input type="number" step="0.001" id="bInstallment" value="10.167" oninput="calculateBatelco()">
+      </div>
 
-    <div class="batelco-row batelco-highlight-gold">
-      <span>FIXED PAYABLE</span>
-      <span id="bFixedPayable">BHD 37.667</span>
-    </div>
+      <div class="batelco-row batelco-highlight-gold">
+        <span>FIXED PAYABLE</span>
+        <span id="bFixedPayable">BHD 37.667</span>
+      </div>
 
-    <div class="batelco-subheading">ADDITIONAL CHARGES</div>
-    <div class="batelco-row">
-      <span>DOLP</span>
-      <input type="number" step="0.001" id="bDolp" value="0.000" oninput="calculateBatelco()">
-    </div>
-    <div class="batelco-row">
-      <span>MONSE</span>
-      <input type="number" step="0.001" id="bMonse" value="0.000" oninput="calculateBatelco()">
-    </div>
+      <div class="batelco-subheading">ADDITIONAL CHARGES</div>
+      <div class="batelco-row">
+        <span>DOLP</span>
+        <input type="number" step="0.001" id="bDolp" value="0.000" oninput="calculateBatelco()">
+      </div>
+      <div class="batelco-row">
+        <span>MONSE</span>
+        <input type="number" step="0.001" id="bMonse" value="0.000" oninput="calculateBatelco()">
+      </div>
 
-    <div class="batelco-row batelco-highlight-gold">
-      <span>SUB TOTAL</span>
-      <span id="bSubTotal">BHD 0.000</span>
-    </div>
+      <div class="batelco-row batelco-highlight-gold">
+        <span>SUB TOTAL</span>
+        <span id="bSubTotal">BHD 0.000</span>
+      </div>
 
-    <div class="batelco-row batelco-highlight-gold">
-      <span>TOTAL</span>
-      <span id="bTotal">BHD 37.667</span>
-    </div>
+      <div class="batelco-row batelco-highlight-gold">
+        <span>TOTAL</span>
+        <span id="bTotal">BHD 37.667</span>
+      </div>
 
-    <div class="batelco-row batelco-highlight-blue">
-      <span>DIV BY 3</span>
-      <span id="bDivBy3">BHD 12.556</span>
-    </div>
+      <div class="batelco-row batelco-highlight-blue">
+        <span>DIV BY 3</span>
+        <span id="bDivBy3">BHD 12.556</span>
+      </div>
 
-    <div class="batelco-subheading">OFFSET TO BATELCO</div>
-    <div class="batelco-row">
-      <span>OFFSET AMOUNT</span>
-      <input type="number" step="0.001" id="bOffset" value="0.000" oninput="calculateBatelco()">
-    </div>
+      <div class="batelco-subheading">OFFSET TO BATELCO</div>
+      <div class="batelco-row">
+        <span>OFFSET AMOUNT</span>
+        <input type="number" step="0.001" id="bOffset" value="0.000" oninput="calculateBatelco()">
+      </div>
 
-    <div class="batelco-row batelco-highlight-gold">
-      <span>TOTAL:</span>
-      <span id="bOffsetTotal">BHD 0.000</span>
-    </div>
+      <div class="batelco-row batelco-highlight-gold">
+        <span>TOTAL:</span>
+        <span id="bOffsetTotal">BHD 0.000</span>
+      </div>
 
-    <div class="batelco-row batelco-highlight-blue" style="font-size:0.95rem; margin-top:8px;">
-      <span>SEND TO JOY</span>
-      <span id="bSendToJoy">BHD 37.667</span>
+      <div class="batelco-row batelco-highlight-blue" style="font-size:0.95rem; margin-top:8px;">
+        <span>SEND TO JOY</span>
+        <span id="bSendToJoy">BHD 37.667</span>
+      </div>
     </div>
   </div>
 
@@ -280,11 +294,19 @@
   let allTransactions = [];
   let monthFilteredTransactions = [];
 
-  // Automatically default monthPicker to CURRENT month (e.g., YYYY-MM)
+  // Default to CURRENT month
   const today = new Date();
   const currentYearMonth = today.toISOString().substring(0, 7);
   monthPicker.value = currentYearMonth;
   dateInput.value = today.toISOString().split('T')[0];
+
+  function switchTab(tabId, element) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    
+    document.getElementById(tabId).classList.add('active');
+    element.classList.add('active');
+  }
 
   async function fetchTransactions() {
     const { data, error } = await supabaseClient
