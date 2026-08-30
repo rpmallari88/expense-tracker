@@ -42,13 +42,23 @@ async function checkAuthSession() {
 
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const email = document.getElementById('loginEmail').value;
+  const input = document.getElementById('loginEmail').value.trim().toLowerCase();
   const password = document.getElementById('loginPassword').value;
 
   loginError.style.display = 'none';
 
+  // Map your short usernames directly to your existing emails
+  const userMap = {
+    "dolp": "rpmallari88@gmail.com", // Put your actual email here
+    "monse": "monsemurosbh@gmail.com"      // Put your wife's actual email here
+  };
+
+  // If you typed a username found in the map, convert it to the full email
+  // Otherwise, use whatever was typed (in case you still type a full email)
+  const finalEmail = userMap[input] || input;
+
   const { data, error } = await supabaseClient.auth.signInWithPassword({
-    email: email,
+    email: finalEmail,
     password: password,
   });
 
