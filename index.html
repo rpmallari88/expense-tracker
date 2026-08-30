@@ -9,10 +9,30 @@
 </head>
 <body>
 
-<div class="app-container">
-  <h1>💰 Expense Tracker</h1>
+<div class="modal-overlay" id="loginModal" style="display: flex;">
+  <div class="modal-content">
+    <h2 style="margin-top:0; text-align: center;">🔒 Login</h2>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" placeholder="your-email@example.com" required>
+      </div>
+      <div class="form-group">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" required>
+      </div>
+      <p id="loginError" style="color: #ff4d4f; font-size: 0.85rem; display: none;"></p>
+      <button type="submit" class="submit-btn" style="margin-top: 15px;">Log In</button>
+    </form>
+  </div>
+</div>
 
-  <!-- Navigation Bar -->
+<div class="app-container" id="appContainer" style="display: none;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <h1 style="margin: 0;">💰 Expense Tracker</h1>
+    <button onclick="handleLogout()" style="width: auto; padding: 6px 12px; background: #ff4d4f; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Logout</button>
+  </div>
+
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="switchTab('dashboardTab', this)">🏠 Dashboard</button>
     <button class="tab-btn" onclick="switchTab('transactionsTab', this)">📋 Transactions</button>
@@ -20,7 +40,6 @@
     <button class="tab-btn" onclick="switchTab('batelcoTab', this)">📱 Batelco</button>
   </div>
 
-  <!-- TAB 1: DASHBOARD -->
   <div id="dashboardTab" class="tab-content active">
     <div class="month-selector">
       <label for="monthPicker">📅 Selected Month:</label>
@@ -91,7 +110,6 @@
     </form>
   </div>
 
-  <!-- TAB 2: TRANSACTIONS LIST -->
   <div id="transactionsTab" class="tab-content">
     <div class="filter-section">
       <h3 style="margin:0;">Records</h3>
@@ -113,7 +131,6 @@
     </div>
   </div>
 
-  <!-- TAB 3: KFH - BILLS CHECKLIST -->
   <div id="billsTab" class="tab-content">
     <div class="month-selector">
       <label for="kfhMonthPicker">📅 Select Month:</label>
@@ -136,7 +153,6 @@
           </tr>
         </thead>
         <tbody>
-          <!-- HOUSEHOLD -->
           <tr class="category-header"><td colspan="4">HOUSEHOLD</td></tr>
           <tr>
             <td>Household</td>
@@ -161,7 +177,6 @@
             <td style="text-align:right;" class="dynamic-val" id="billBatelco">37.667</td>
           </tr>
 
-          <!-- LOAN -->
           <tr class="category-header"><td colspan="4">LOAN</td></tr>
           <tr>
             <td>Loan</td>
@@ -170,7 +185,6 @@
             <td style="text-align:right;" class="fixed-val">123.000</td>
           </tr>
 
-          <!-- MAINTENANCE -->
           <tr class="category-header"><td colspan="4">MAINTENANCE</td></tr>
           <tr>
             <td>Maintenance</td>
@@ -185,7 +199,6 @@
             <td style="text-align:right;" class="fixed-val">8.000</td>
           </tr>
 
-          <!-- SAVINGS -->
           <tr class="category-header"><td colspan="4">SAVINGS</td></tr>
           <tr>
             <td>Savings</td>
@@ -206,7 +219,6 @@
             <td style="text-align:right;" class="fixed-val">100.000</td>
           </tr>
 
-          <!-- TOTALS -->
           <tr class="total-row">
             <td colspan="2">TOTAL EXPENSES</td>
             <td style="text-align:right;">815.000</td>
@@ -222,7 +234,6 @@
     </div>
   </div>
 
-  <!-- TAB 4: BATELCO BREAKDOWN -->
   <div id="batelcoTab" class="tab-content">
     <div class="batelco-card">
       <div class="batelco-header">BATELCO BREAKDOWN</div>
@@ -286,7 +297,6 @@
 
 </div>
 
-<!-- Edit Transaction Modal -->
 <div class="modal-overlay" id="editModal">
   <div class="modal-content">
     <h3 style="margin-top:0;">✏️ Edit Transaction</h3>

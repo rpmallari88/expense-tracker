@@ -2,6 +2,12 @@ const SUPABASE_URL = "https://rdvrrayllyvvbaojycis.supabase.co";
 const SUPABASE_KEY = "sb_publishable_yw0QInSEFsxTUlm5r7uTpA_Gn6LeWN2"; // Put your actual anon public key here
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const loginForm = document.getElementById('loginForm');
+const loginModal = document.getElementById('loginModal');
+const appContainer = document.getElementById('appContainer');
+const loginError = document.getElementById('loginError');
+
 const form = document.getElementById('expenseForm');
 const editForm = document.getElementById('editForm');
 const dateInput = document.getElementById('date');
@@ -19,6 +25,45 @@ const currentYearMonth = today.toISOString().substring(0, 7);
 monthPicker.value = currentYearMonth;
 kfhMonthPicker.value = currentYearMonth;
 dateInput.value = today.toISOString().split('T')[0];
+
+// Handle Authentication State
+async function checkAuthSession() {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) {
+    loginModal.style.display = 'none';
+    appContainer.style.display = 'block';
+    fetchTransactions();
+    calculateBatelco();
+  } else {
+    loginModal.style.display = 'flex';
+    appContainer.style.display = 'none';
+  }
+}
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+
+  loginError.style.display = 'none';
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email: email,
+    password: password,
+  });
+
+  if (error) {
+    loginError.innerText = error.message;
+    loginError.style.display = 'block';
+  } else {
+    checkAuthSession();
+  }
+});
+
+async function handleLogout() {
+  await supabaseClient.auth.signOut();
+  checkAuthSession();
+}
 
 function switchTab(tabId, element) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -104,7 +149,6 @@ function calculateSummaries() {
 
   const batelcoAmount = getBatelcoSendToJoyVal();
 
-  // Fixed Budgets
   const rent = 280.000;
   const carLoan = 123.000;
   const carCleaning = 8.000;
@@ -112,24 +156,20 @@ function calculateSummaries() {
   const hsbc = 100.000;
   const bbk = 100.000;
 
-  // Calculations
   const monthlyTotal = rent + groceryCC + groceryCash + batelcoAmount + carLoan + gasTotal + carCleaning + coop + hsbc + bbk;
   const actualNonSavingsExpenses = rent + groceryCC + groceryCash + batelcoAmount + carLoan + gasTotal + carCleaning;
-  const availableExpenseBudget = 590.000; // 584.000 base + 6.000 buffer
+  const availableExpenseBudget = 590.000;
   const totalSavings = availableExpenseBudget - actualNonSavingsExpenses;
 
-  // Update Top Cards
   document.getElementById('dashTotalExpenses').innerText = `BHD ${monthlyTotal.toFixed(3)}`;
   document.getElementById('dashTotalSavings').innerText = `BHD ${totalSavings.toFixed(3)}`;
 
-  // Update Lower Cards
   document.getElementById('kpiCC').innerText = `BHD ${ccTotal.toFixed(3)}`;
   document.getElementById('kpiEmergency').innerText = `BHD ${emergencyTotal.toFixed(3)}`;
   document.getElementById('kpiGas').innerText = `BHD ${gasTotal.toFixed(3)}`;
   document.getElementById('kpiGroceryCC').innerText = `BHD ${groceryCC.toFixed(3)}`;
   document.getElementById('kpiGroceryCash').innerText = `BHD ${groceryCash.toFixed(3)}`;
 
-  // Update Bills Checklist Tab
   document.getElementById('billGroceryCC').innerText = groceryCC.toFixed(3);
   document.getElementById('billGroceryCash').innerText = groceryCash.toFixed(3);
   document.getElementById('billBatelco').innerText = batelcoAmount.toFixed(3);
@@ -252,7 +292,6 @@ editForm.addEventListener('submit', async (e) => {
 
   if (error) {
     alert("Error updating transaction: " + error.message);
-    console.error("Supabase Update Error:", error);
   } else {
     closeEditModal();
     syncAndApplyFilters(year_month);
@@ -284,8 +323,10 @@ form.addEventListener('submit', async (e) => {
   const is_emergency = document.getElementById('isEmergency').checked;
   const year_month = date.substring(0, 7);
 
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
   const { error } = await supabaseClient.from('transactions').insert([
-    { date, description, amount, payment_method, is_emergency, year_month }
+    { date, description, amount, payment_method, is_emergency, year_month, user_id: user.id }
   ]);
 
   if (error) {
@@ -298,5 +339,4 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
-fetchTransactions();
-calculateBatelco();
+checkAuthSession();
