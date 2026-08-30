@@ -350,3 +350,124 @@ form.addEventListener('submit', async (e) => {
 });
 
 checkAuthSession();
+
+// Sync report month picker with main month filters
+const reportMonthPicker = document.getElementById('reportMonthPicker');
+if (reportMonthPicker) reportMonthPicker.value = currentYearMonth;
+
+// Update summary text in Reports Tab
+// Update summary text AND transaction report table in Reports Tab
+function updateReportSummary() {
+  const selectedMonth = monthPicker.value;
+  const list = document.getElementById('reportSummaryList');
+  const tableBody = document.getElementById('reportTxTableBody');
+  const txCountLabel = document.getElementById('reportTxCount');
+  
+  if (!list || !tableBody) return;
+
+  // 1. Gather Summary Values
+  const totalExp = document.getElementById('dashTotalExpenses').innerText;
+  const totalSav = document.getElementById('dashTotalSavings').innerText;
+  const ccPay = document.getElementById('kpiCC').innerText;
+  const emergency = document.getElementById('kpiEmergency').innerText;
+
+  list.innerHTML = `
+    <li><strong>Selected Period:</strong> ${selectedMonth}</li>
+    <li><strong>Total Monthly Expenses:</strong> ${totalExp}</li>
+    <li><strong>Total Estimated Savings:</strong> ${totalSav}</li>
+    <li><strong>Credit Card Payable:</strong> ${ccPay}</li>
+    <li><strong>Emergency Fund Deductions:</strong> ${emergency}</li>
+    <li><strong>Total Transactions Logged:</strong> ${monthFilteredTransactions.length} items</li>
+  `;
+
+  // 2. Render Transaction Breakdown Table
+  if (txCountLabel) txCountLabel.innerText = `${monthFilteredTransactions.length} Items`;
+
+  if (monthFilteredTransactions.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:15px;">No transactions recorded for this month.</td></tr>`;
+    return;
+  }
+
+  tableBody.innerHTML = monthFilteredTransactions.map(tx => {
+    const isEmerg = isEmergencyTx(tx);
+    const badgeStyle = isEmerg 
+      ? 'background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;' 
+      : 'background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;';
+
+    return `
+      <tr>
+        <td>${tx.date}</td>
+        <td><strong>${tx.description}</strong></td>
+        <td>${tx.payment_method}</td>
+        <td><span style="${badgeStyle}">${isEmerg ? '🚨 Emergency' : 'Standard'}</span></td>
+        <td style="text-align:right; font-weight:bold; color: #0f172a;">${Number(tx.amount).toFixed(3)}</td>
+      </tr>
+    `;
+  }).join('');
+}
+// Hook summary updates into your main applyFilters function
+const originalApplyFilters = applyFilters;
+applyFilters = function() {
+  originalApplyFilters();
+  if (reportMonthPicker) reportMonthPicker.value = monthPicker.value;
+  updateReportSummary();
+};
+
+// EXPORT TO EXCEL
+function exportToExcel() {
+  const selectedMonth = monthPicker.value;
+  
+  // Format transaction rows for Excel output
+  const dataToExport = monthFilteredTransactions.map(tx => ({
+    Date: tx.date,
+    Description: tx.description,
+    "Amount (BHD)": Number(tx.amount).toFixed(3),
+    "Payment Method": tx.payment_method,
+    Emergency: isEmergencyTx(tx) ? "Yes" : "No"
+  }));
+
+  if (dataToExport.length === 0) {
+    alert("No transactions available for the selected month to export.");
+    return;
+  }
+
+  const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+
+  XLSX.writeFile(workbook, `Expense_Report_${selectedMonth}.xlsx`);
+}
+
+// EXPORT TO PDF
+function exportToPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const selectedMonth = monthPicker.value;
+
+  // Document Title & Metadata
+  doc.setFontSize(16);
+  doc.text(`Monthly Expense Report (${selectedMonth})`, 14, 15);
+  
+  doc.setFontSize(10);
+  doc.text(`Total Expenses: ${document.getElementById('dashTotalExpenses').innerText}`, 14, 23);
+  doc.text(`Total Savings: ${document.getElementById('dashTotalSavings').innerText}`, 14, 29);
+
+  // Table Data Formatting
+  const tableRows = monthFilteredTransactions.map(tx => [
+    tx.date,
+    tx.description,
+    `${Number(tx.amount).toFixed(3)} BHD`,
+    tx.payment_method,
+    isEmergencyTx(tx) ? "Emergency" : "Standard"
+  ]);
+
+  doc.autoTable({
+    startY: 35,
+    head: [['Date', 'Description', 'Amount', 'Method', 'Type']],
+    body: tableRows,
+    headStyles: { fillColor: [0, 82, 204] },
+    alternateRowStyles: { fillColor: [245, 247, 250] }
+  });
+
+  doc.save(`Expense_Report_${selectedMonth}.pdf`);
+}

@@ -5,17 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Monthly Expense Tracker & Bills Checklist</title>
   <link rel="stylesheet" href="styles.css">
+  
+  <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- jsPDF and AutoTable for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
+<!-- Login Modal Screen -->
 <div class="modal-overlay" id="loginModal" style="display: flex;">
   <div class="modal-content">
     <h2 style="margin-top:0; text-align: center;">🔒 Login</h2>
     <form id="loginForm">
       <div class="form-group">
-  	<label for="loginEmail">Username or Email</label>
-  	<input type="text" id="loginEmail" placeholder="username or email" required>
+        <label for="loginEmail">Username or Email</label>
+        <input type="text" id="loginEmail" placeholder="username or email" required>
       </div>
       <div class="form-group">
         <label for="loginPassword">Password</label>
@@ -33,13 +43,16 @@
     <button onclick="handleLogout()" style="width: auto; padding: 6px 12px; background: #ff4d4f; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Logout</button>
   </div>
 
+  <!-- Navigation Bar -->
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="switchTab('dashboardTab', this)">🏠 Dashboard</button>
     <button class="tab-btn" onclick="switchTab('transactionsTab', this)">📋 Transactions</button>
     <button class="tab-btn" onclick="switchTab('billsTab', this)">🏦 KFH</button>
     <button class="tab-btn" onclick="switchTab('batelcoTab', this)">📱 Batelco</button>
+    <button class="tab-btn" onclick="switchTab('reportsTab', this)">📊 Reports</button>
   </div>
 
+  <!-- TAB 1: DASHBOARD -->
   <div id="dashboardTab" class="tab-content active">
     <div class="month-selector">
       <label for="monthPicker">📅 Selected Month:</label>
@@ -110,6 +123,7 @@
     </form>
   </div>
 
+  <!-- TAB 2: TRANSACTIONS LIST -->
   <div id="transactionsTab" class="tab-content">
     <div class="filter-section">
       <h3 style="margin:0;">Records</h3>
@@ -131,6 +145,7 @@
     </div>
   </div>
 
+  <!-- TAB 3: KFH - BILLS CHECKLIST -->
   <div id="billsTab" class="tab-content">
     <div class="month-selector">
       <label for="kfhMonthPicker">📅 Select Month:</label>
@@ -153,6 +168,7 @@
           </tr>
         </thead>
         <tbody>
+          <!-- HOUSEHOLD -->
           <tr class="category-header"><td colspan="4">HOUSEHOLD</td></tr>
           <tr>
             <td>Household</td>
@@ -177,6 +193,7 @@
             <td style="text-align:right;" class="dynamic-val" id="billBatelco">37.667</td>
           </tr>
 
+          <!-- LOAN -->
           <tr class="category-header"><td colspan="4">LOAN</td></tr>
           <tr>
             <td>Loan</td>
@@ -185,6 +202,7 @@
             <td style="text-align:right;" class="fixed-val">123.000</td>
           </tr>
 
+          <!-- MAINTENANCE -->
           <tr class="category-header"><td colspan="4">MAINTENANCE</td></tr>
           <tr>
             <td>Maintenance</td>
@@ -199,6 +217,7 @@
             <td style="text-align:right;" class="fixed-val">8.000</td>
           </tr>
 
+          <!-- SAVINGS -->
           <tr class="category-header"><td colspan="4">SAVINGS</td></tr>
           <tr>
             <td>Savings</td>
@@ -219,6 +238,7 @@
             <td style="text-align:right;" class="fixed-val">100.000</td>
           </tr>
 
+          <!-- TOTALS -->
           <tr class="total-row">
             <td colspan="2">TOTAL EXPENSES</td>
             <td style="text-align:right;">815.000</td>
@@ -234,6 +254,7 @@
     </div>
   </div>
 
+  <!-- TAB 4: BATELCO BREAKDOWN -->
   <div id="batelcoTab" class="tab-content">
     <div class="batelco-card">
       <div class="batelco-header">BATELCO BREAKDOWN</div>
@@ -295,8 +316,53 @@
     </div>
   </div>
 
-</div>
+  <!-- TAB 5: REPORTS & EXPORT -->
+<div id="reportsTab" class="tab-content">
+  <div class="month-selector">
+    <label for="reportMonthPicker">📅 Select Report Month:</label>
+    <input type="month" id="reportMonthPicker" onchange="syncAndApplyFilters(this.value)">
+  </div>
 
+  <!-- Export Actions -->
+  <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+    <button onclick="exportToExcel()" class="submit-btn" style="background: #107c41; margin: 0; flex: 1; min-width: 180px;">🟢 Export to Excel (.xlsx)</button>
+    <button onclick="exportToPDF()" class="submit-btn" style="background: #d9381e; margin: 0; flex: 1; min-width: 180px;">🔴 Export to PDF (.pdf)</button>
+  </div>
+
+  <!-- Executive Summary Card -->
+  <div id="reportSummaryView" style="background: #f8fafc; padding: 18px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+    <h3 style="margin-top:0; color: #0052cc;">📊 Monthly Financial Overview</h3>
+    <ul id="reportSummaryList" style="line-height: 1.8; margin-bottom: 0;">
+      <!-- Populated dynamically via JS -->
+    </ul>
+  </div>
+
+  <!-- Detailed Transaction Breakdown Table -->
+  <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; padding: 15px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h3 style="margin: 0;">📋 Detailed Transaction Log</h3>
+      <span id="reportTxCount" style="font-size: 0.85rem; font-weight: bold; color: #64748b;">0 Items</span>
+    </div>
+
+    <div class="bills-table-wrapper">
+      <table class="bills-table" id="reportTransactionsTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Method</th>
+            <th>Type</th>
+            <th style="text-align:right;">Amount (BHD)</th>
+          </tr>
+        </thead>
+        <tbody id="reportTxTableBody">
+          <!-- Populated dynamically via JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<!-- Edit Transaction Modal -->
 <div class="modal-overlay" id="editModal">
   <div class="modal-content">
     <h3 style="margin-top:0;">✏️ Edit Transaction</h3>
