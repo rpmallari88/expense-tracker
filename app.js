@@ -1,5 +1,5 @@
 const SUPABASE_URL = "https://rdvrrayllyvvbaojycis.supabase.co";
-const SUPABASE_KEY = "sb_publishable_yw0QInSEFsxTUlm5r7uTpA_Gn6LeWN2"; // Put your actual anon public key here
+const SUPABASE_KEY = "sb_publishable_yw0QInSEFsxTUlm5r7uTpA_Gn6LeWN2"; 
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -13,26 +13,65 @@ const editForm = document.getElementById('editForm');
 const dateInput = document.getElementById('date');
 const monthPicker = document.getElementById('monthPicker');
 const kfhMonthPicker = document.getElementById('kfhMonthPicker');
+const txMonthPicker = document.getElementById('txMonthPicker');
+const bbkMonthPicker = document.getElementById('bbkMonthPicker');
+const reportMonthPicker = document.getElementById('reportMonthPicker');
 const txContainer = document.getElementById('transactionsContainer');
 const editModal = document.getElementById('editModal');
 
 let allTransactions = [];
 let monthFilteredTransactions = [];
 
-// Default to CURRENT month
+// Store Celebrations
+let celebrations = JSON.parse(localStorage.getItem('celebrations')) || [
+  { id: '1', date: '2026-07-12', purpose: "ALICIA'S BIRTHDAY" },
+  { id: '2', date: '2026-07-16', purpose: "PAPA'S BIRTHDAY" },
+  { id: '3', date: '2026-07-17', purpose: "KARMELLE'S BIRTHDAY" },
+  { id: '4', date: '2026-07-17', purpose: "VANIE'S BIRTHDAY" },
+  { id: '5', date: '2026-07-19', purpose: "JARED'S 14TH BIRTHDAY" },
+  { id: '6', date: '2026-07-21', purpose: "ANNA'S BIRTHDAY" }
+];
+
+// Store BBK per-month values
+let bbkMonthlyData = JSON.parse(localStorage.getItem('bbkMonthlyData')) || {
+  "2026-06": {
+    monthlySavings: 100.000,
+    travelFund: 0.000,
+    transportProfits: 0.000,
+    asOfDate: "31-May-2026",
+    currentAmount: 282.609,
+    exactAmountOverride: 176.896
+  },
+  "2026-07": {
+    monthlySavings: 100.000,
+    travelFund: 0.000,
+    transportProfits: 72.000,
+    asOfDate: "30-Jun-2026",
+    currentAmount: 176.896
+  }
+};
+
+// Calculate dates FIRST
 const today = new Date();
 const currentYearMonth = today.toISOString().substring(0, 7);
-monthPicker.value = currentYearMonth;
-kfhMonthPicker.value = currentYearMonth;
-dateInput.value = today.toISOString().split('T')[0];
 
-// Handle Authentication State
+// Assign values SECOND
+if (monthPicker) monthPicker.value = currentYearMonth;
+if (kfhMonthPicker) kfhMonthPicker.value = currentYearMonth;
+if (txMonthPicker) txMonthPicker.value = currentYearMonth;
+if (bbkMonthPicker) bbkMonthPicker.value = currentYearMonth;
+if (reportMonthPicker) reportMonthPicker.value = currentYearMonth;
+if (dateInput) dateInput.value = today.toISOString().split('T')[0];
+
 async function checkAuthSession() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
     loginModal.style.display = 'none';
     appContainer.style.display = 'block';
-    fetchTransactions();
+    
+    switchTab('dashboardTab', document.querySelector('.nav-tabs .tab-btn'));
+    
+    await fetchTransactions();
     calculateBatelco();
   } else {
     loginModal.style.display = 'flex';
@@ -40,47 +79,63 @@ async function checkAuthSession() {
   }
 }
 
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const input = document.getElementById('loginEmail').value.trim().toLowerCase();
-  const password = document.getElementById('loginPassword').value;
+if (loginForm) {
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('loginEmail').value.trim().toLowerCase();
+    const password = document.getElementById('loginPassword').value;
 
-  loginError.style.display = 'none';
+    loginError.style.display = 'none';
 
-  // Map your short usernames directly to your existing emails
-  const userMap = {
-    "dolp": "rpmallari88@gmail.com", // Put your actual email here
-    "monse": "monsemurosbh@gmail.com"      // Put your wife's actual email here
-  };
+    const userMap = {
+      "dolp": "rpmallari88@gmail.com",
+      "monse": "monsemurosbh@gmail.com"
+    };
 
-  // If you typed a username found in the map, convert it to the full email
-  // Otherwise, use whatever was typed (in case you still type a full email)
-  const finalEmail = userMap[input] || input;
+    const finalEmail = userMap[input] || input;
 
-  const { data, error } = await supabaseClient.auth.signInWithPassword({
-    email: finalEmail,
-    password: password,
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: finalEmail,
+      password: password,
+    });
+
+    if (error) {
+      loginError.innerText = error.message;
+      loginError.style.display = 'block';
+    } else {
+      checkAuthSession();
+    }
   });
-
-  if (error) {
-    loginError.innerText = error.message;
-    loginError.style.display = 'block';
-  } else {
-    checkAuthSession();
-  }
-});
+}
 
 async function handleLogout() {
   await supabaseClient.auth.signOut();
   checkAuthSession();
 }
 
-function switchTab(tabId, element) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  
-  document.getElementById(tabId).classList.add('active');
-  element.classList.add('active');
+function switchTab(tabId, btnElement) {
+  const tabs = document.querySelectorAll('.tab-content');
+  tabs.forEach(tab => tab.classList.remove('active'));
+
+  const buttons = document.querySelectorAll('.tab-btn');
+  buttons.forEach(btn => btn.classList.remove('active'));
+
+  const activeTab = document.getElementById(tabId);
+  if (activeTab) activeTab.classList.add('active');
+
+  if (btnElement) {
+    btnElement.classList.add('active');
+  } else {
+    const activeBtn = document.querySelector(`[onclick*="${tabId}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+  }
+
+  if (tabId === 'dashboardTab') calculateSummaries();
+  if (tabId === 'billsTab') calculateSummaries();
+  if (tabId === 'batelcoTab') calculateBatelco();
+  if (tabId === 'bbkTab') renderBBKTab();
+  if (tabId === 'reportsTab' && typeof updateReportSummary === 'function') updateReportSummary();
+  if (tabId === 'transactionsTab' && typeof renderTransactions === 'function') renderTransactions();
 }
 
 async function fetchTransactions() {
@@ -90,7 +145,7 @@ async function fetchTransactions() {
     .order('date', { ascending: false });
 
   if (error) {
-    txContainer.innerHTML = `<p style="color:red;">Error loading: ${error.message}</p>`;
+    if (txContainer) txContainer.innerHTML = `<p style="color:red;">Error loading: ${error.message}</p>`;
     return;
   }
 
@@ -99,14 +154,20 @@ async function fetchTransactions() {
 }
 
 function syncAndApplyFilters(selectedMonth) {
-  monthPicker.value = selectedMonth;
-  kfhMonthPicker.value = selectedMonth;
+  if (monthPicker) monthPicker.value = selectedMonth;
+  if (kfhMonthPicker) kfhMonthPicker.value = selectedMonth;
+  if (txMonthPicker) txMonthPicker.value = selectedMonth;
+  if (bbkMonthPicker) bbkMonthPicker.value = selectedMonth;
+  if (reportMonthPicker) reportMonthPicker.value = selectedMonth;
+
   applyFilters();
 }
 
 function applyFilters() {
-  const selectedMonth = monthPicker.value;
-  document.getElementById('billsMonthLabel').innerText = `(${selectedMonth})`;
+  const selectedMonth = monthPicker ? monthPicker.value : currentYearMonth;
+  
+  const billsLabel = document.getElementById('billsMonthLabel');
+  if (billsLabel) billsLabel.innerText = `(${selectedMonth})`;
 
   monthFilteredTransactions = allTransactions.filter(tx => {
     if (!tx.date) return false;
@@ -115,10 +176,12 @@ function applyFilters() {
 
   calculateSummaries();
   renderTransactions();
+  renderBBKTab();
+  updateReportSummary();
 }
 
 function isEmergencyTx(tx) {
-  const legacyKeywords = ['decathlon', 'virgin sim', 'anwar phones', 'ksa insurance', 'ksa tollgate'];
+  const legacyKeywords = ['decathlon', 'virgin sim', 'anwar phones', 'ksa insurance', 'ksa tollgate', 'ksa-uae trip', 'visa', 'monse withdraw'];
   const desc = (tx.description || '').toLowerCase();
   return tx.is_emergency === true || legacyKeywords.some(k => desc.includes(k));
 }
@@ -171,40 +234,52 @@ function calculateSummaries() {
   const availableExpenseBudget = 590.000;
   const totalSavings = availableExpenseBudget - actualNonSavingsExpenses;
 
-  document.getElementById('dashTotalExpenses').innerText = `BHD ${monthlyTotal.toFixed(3)}`;
-  document.getElementById('dashTotalSavings').innerText = `BHD ${totalSavings.toFixed(3)}`;
+  // Retrieve current BBK Exact Amount
+  const selectedMonthStr = monthPicker ? monthPicker.value : currentYearMonth;
+  const currentMonthData = bbkMonthlyData[selectedMonthStr] || {};
+  const emergencyTxList = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
+  const deductionsTotal = emergencyTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  
+  const subtotal = (currentMonthData.monthlySavings || 0) + (currentMonthData.travelFund || 0) + (currentMonthData.transportProfits || 0) + (currentMonthData.currentAmount || 0);
+  const monthEndTotal = subtotal - deductionsTotal;
+  const exactBBKAmount = currentMonthData.exactAmountOverride !== undefined ? currentMonthData.exactAmountOverride : monthEndTotal;
 
-  document.getElementById('kpiCC').innerText = `BHD ${ccTotal.toFixed(3)}`;
-  document.getElementById('kpiEmergency').innerText = `BHD ${emergencyTotal.toFixed(3)}`;
-  document.getElementById('kpiGas').innerText = `BHD ${gasTotal.toFixed(3)}`;
-  document.getElementById('kpiGroceryCC').innerText = `BHD ${groceryCC.toFixed(3)}`;
-  document.getElementById('kpiGroceryCash').innerText = `BHD ${groceryCash.toFixed(3)}`;
+  // Update Dashboard Cards
+  if (document.getElementById('dashTotalExpenses')) document.getElementById('dashTotalExpenses').innerText = `BHD ${monthlyTotal.toFixed(3)}`;
+  if (document.getElementById('dashTotalSavings')) document.getElementById('dashTotalSavings').innerText = `BHD ${totalSavings.toFixed(3)}`;
+  if (document.getElementById('dashBBKCurrentAmount')) document.getElementById('dashBBKCurrentAmount').innerText = `BHD ${Number(exactBBKAmount).toFixed(3)}`;
 
-  document.getElementById('billGroceryCC').innerText = groceryCC.toFixed(3);
-  document.getElementById('billGroceryCash').innerText = groceryCash.toFixed(3);
-  document.getElementById('billBatelco').innerText = batelcoAmount.toFixed(3);
-  document.getElementById('billGas').innerText = gasTotal.toFixed(3);
-  document.getElementById('billMonthlyTotal').innerText = monthlyTotal.toFixed(3);
-  document.getElementById('billExtras').innerText = totalSavings.toFixed(3);
+  if (document.getElementById('kpiCC')) document.getElementById('kpiCC').innerText = `BHD ${ccTotal.toFixed(3)}`;
+  if (document.getElementById('kpiEmergency')) document.getElementById('kpiEmergency').innerText = `BHD ${emergencyTotal.toFixed(3)}`;
+  if (document.getElementById('kpiGas')) document.getElementById('kpiGas').innerText = `BHD ${gasTotal.toFixed(3)}`;
+  if (document.getElementById('kpiGroceryCC')) document.getElementById('kpiGroceryCC').innerText = `BHD ${groceryCC.toFixed(3)}`;
+  if (document.getElementById('kpiGroceryCash')) document.getElementById('kpiGroceryCash').innerText = `BHD ${groceryCash.toFixed(3)}`;
+
+  if (document.getElementById('billGroceryCC')) document.getElementById('billGroceryCC').innerText = groceryCC.toFixed(3);
+  if (document.getElementById('billGroceryCash')) document.getElementById('billGroceryCash').innerText = groceryCash.toFixed(3);
+  if (document.getElementById('billBatelco')) document.getElementById('billBatelco').innerText = batelcoAmount.toFixed(3);
+  if (document.getElementById('billGas')) document.getElementById('billGas').innerText = gasTotal.toFixed(3);
+  if (document.getElementById('billMonthlyTotal')) document.getElementById('billMonthlyTotal').innerText = monthlyTotal.toFixed(3);
+  if (document.getElementById('billExtras')) document.getElementById('billExtras').innerText = totalSavings.toFixed(3);
 }
 
 function getBatelcoSendToJoyVal() {
-  const share = parseFloat(document.getElementById('bShare').value) || 0;
-  const installment = parseFloat(document.getElementById('bInstallment').value) || 0;
-  const dolp = parseFloat(document.getElementById('bDolp').value) || 0;
-  const monse = parseFloat(document.getElementById('bMonse').value) || 0;
-  const offset = parseFloat(document.getElementById('bOffset').value) || 0;
+  const share = parseFloat(document.getElementById('bShare')?.value) || 0;
+  const installment = parseFloat(document.getElementById('bInstallment')?.value) || 0;
+  const dolp = parseFloat(document.getElementById('bDolp')?.value) || 0;
+  const monse = parseFloat(document.getElementById('bMonse')?.value) || 0;
+  const offset = parseFloat(document.getElementById('bOffset')?.value) || 0;
 
   const total = share + installment + dolp + monse;
   return total - offset;
 }
 
 function calculateBatelco() {
-  const share = parseFloat(document.getElementById('bShare').value) || 0;
-  const installment = parseFloat(document.getElementById('bInstallment').value) || 0;
-  const dolp = parseFloat(document.getElementById('bDolp').value) || 0;
-  const monse = parseFloat(document.getElementById('bMonse').value) || 0;
-  const offset = parseFloat(document.getElementById('bOffset').value) || 0;
+  const share = parseFloat(document.getElementById('bShare')?.value) || 0;
+  const installment = parseFloat(document.getElementById('bInstallment')?.value) || 0;
+  const dolp = parseFloat(document.getElementById('bDolp')?.value) || 0;
+  const monse = parseFloat(document.getElementById('bMonse')?.value) || 0;
+  const offset = parseFloat(document.getElementById('bOffset')?.value) || 0;
 
   const fixedPayable = share + installment;
   const subTotal = dolp + monse;
@@ -213,31 +288,272 @@ function calculateBatelco() {
   const offsetTotal = offset;
   const sendToJoy = total - offsetTotal;
 
-  document.getElementById('bFixedPayable').innerText = `BHD ${fixedPayable.toFixed(3)}`;
-  document.getElementById('bSubTotal').innerText = `BHD ${subTotal.toFixed(3)}`;
-  document.getElementById('bTotal').innerText = `BHD ${total.toFixed(3)}`;
-  document.getElementById('bDivBy3').innerText = `BHD ${divBy3.toFixed(3)}`;
-  document.getElementById('bOffsetTotal').innerText = `BHD ${offsetTotal.toFixed(3)}`;
-  document.getElementById('bSendToJoy').innerText = `BHD ${sendToJoy.toFixed(3)}`;
+  if (document.getElementById('bFixedPayable')) document.getElementById('bFixedPayable').innerText = `BHD ${fixedPayable.toFixed(3)}`;
+  if (document.getElementById('bSubTotal')) document.getElementById('bSubTotal').innerText = `BHD ${subTotal.toFixed(3)}`;
+  if (document.getElementById('bTotal')) document.getElementById('bTotal').innerText = `BHD ${total.toFixed(3)}`;
+  if (document.getElementById('bDivBy3')) document.getElementById('bDivBy3').innerText = `BHD ${divBy3.toFixed(3)}`;
+  if (document.getElementById('bOffsetTotal')) document.getElementById('bOffsetTotal').innerText = `BHD ${offsetTotal.toFixed(3)}`;
+  if (document.getElementById('bSendToJoy')) document.getElementById('bSendToJoy').innerText = `BHD ${sendToJoy.toFixed(3)}`;
 
   calculateSummaries();
 }
 
-function renderTransactions() {
-  const methodFilter = document.getElementById('filterMethod').value;
-  
-  const finalFiltered = monthFilteredTransactions.filter(tx => {
-    if (methodFilter === 'ALL') return true;
-    if (methodFilter === 'EMERGENCY') return isEmergencyTx(tx);
-    return tx.payment_method === methodFilter;
-  });
+// Helper: Calculate last day of previous month for display (e.g. 30-Jun-2026)
+function getFormattedPreviousMonthEnd(yearMonthStr) {
+  const [year, month] = yearMonthStr.split('-').map(Number);
+  const date = new Date(year, month - 1, 0); 
+  const day = String(date.getDate()).padStart(2, '0');
+  const monthName = date.toLocaleString('default', { month: 'short' });
+  return `${day}-${monthName}-${date.getFullYear()}`;
+}
 
-  if (finalFiltered.length === 0) {
-    txContainer.innerHTML = '<p style="text-align:center; color:#888; padding:20px;">No transactions found.</p>';
+// Helper: Get YYYY-MM for the next month
+function getNextMonthKey(yearMonthStr) {
+  const [year, month] = yearMonthStr.split('-').map(Number);
+  const nextDate = new Date(year, month, 1);
+  const nextYear = nextDate.getFullYear();
+  const nextMonth = String(nextDate.getMonth() + 1).padStart(2, '0');
+  return `${nextYear}-${nextMonth}`;
+}
+
+// Save inputs when user modifies manual values in BBK Tab
+function saveAndRenderBBKInputs() {
+  const selectedMonthStr = bbkMonthPicker ? bbkMonthPicker.value : currentYearMonth;
+  
+  const monthlySavings = parseFloat(document.getElementById('bbkMonthlySavings')?.value) || 0;
+  const travelFund = parseFloat(document.getElementById('bbkTravelFund')?.value) || 0;
+  const transportProfits = parseFloat(document.getElementById('bbkTransportProfits')?.value) || 0;
+  const currentAmount = parseFloat(document.getElementById('bbkCurrentAmount')?.value) || 0;
+  const asOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
+
+  const existingData = bbkMonthlyData[selectedMonthStr] || {};
+
+  bbkMonthlyData[selectedMonthStr] = {
+    ...existingData,
+    monthlySavings,
+    travelFund,
+    transportProfits,
+    asOfDate,
+    currentAmount
+  };
+
+  localStorage.setItem('bbkMonthlyData', JSON.stringify(bbkMonthlyData));
+
+  const emergencyTxList = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
+  const deductionsTotal = emergencyTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+
+  const subtotal = monthlySavings + travelFund + transportProfits + currentAmount;
+  const monthEndTotal = subtotal - deductionsTotal;
+
+  if (document.getElementById('bbkTotalDeductions')) document.getElementById('bbkTotalDeductions').innerText = deductionsTotal.toFixed(3);
+  if (document.getElementById('bbkSubtotal')) document.getElementById('bbkSubtotal').innerText = subtotal.toFixed(3);
+  if (document.getElementById('bbkMonthEndTotal')) document.getElementById('bbkMonthEndTotal').innerText = monthEndTotal.toFixed(3);
+
+  // If exact amount hasn't been manually edited, reflect Month End Total
+  const exactAmountInput = document.getElementById('bbkExactAmount');
+  if (exactAmountInput && existingData.exactAmountOverride === undefined) {
+    exactAmountInput.value = monthEndTotal.toFixed(3);
+  }
+}
+
+// Handler specifically for editing "exact amount" and pushing to next month's "current amount"
+function handleExactAmountEdit() {
+  const selectedMonthStr = bbkMonthPicker ? bbkMonthPicker.value : currentYearMonth;
+  const exactVal = parseFloat(document.getElementById('bbkExactAmount')?.value) || 0;
+
+  if (!bbkMonthlyData[selectedMonthStr]) {
+    bbkMonthlyData[selectedMonthStr] = {};
+  }
+  
+  // Store the manual exact amount override for current month
+  bbkMonthlyData[selectedMonthStr].exactAmountOverride = exactVal;
+
+  // Carry forward this value as the "Current Amount as of" for the NEXT month
+  const nextMonthKey = getNextMonthKey(selectedMonthStr);
+  if (!bbkMonthlyData[nextMonthKey]) {
+    bbkMonthlyData[nextMonthKey] = {
+      monthlySavings: 0.000,
+      travelFund: 0.000,
+      transportProfits: 0.000,
+      asOfDate: getFormattedPreviousMonthEnd(nextMonthKey),
+      currentAmount: exactVal
+    };
+  } else {
+    bbkMonthlyData[nextMonthKey].currentAmount = exactVal;
+  }
+
+  localStorage.setItem('bbkMonthlyData', JSON.stringify(bbkMonthlyData));
+}
+
+// Render BBK Tab Data
+function renderBBKTab() {
+  const selectedMonthStr = bbkMonthPicker ? bbkMonthPicker.value : currentYearMonth;
+  const [selectedYear, selectedMonth] = selectedMonthStr.split('-');
+  
+  const dateObj = new Date(`${selectedMonthStr}-01`);
+  const monthName = dateObj.toLocaleString('default', { month: 'long' }).toUpperCase();
+
+  const labelElem = document.getElementById('bbkHeaderMonthLabel');
+  if (labelElem) labelElem.innerText = `${monthName} ${selectedYear}`;
+
+  const defaultAsOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
+
+  const currentMonthData = bbkMonthlyData[selectedMonthStr] || {
+    monthlySavings: 0.000,
+    travelFund: 0.000,
+    transportProfits: 0.000,
+    asOfDate: defaultAsOfDate,
+    currentAmount: 0.000
+  };
+
+  if (document.getElementById('bbkMonthlySavings')) document.getElementById('bbkMonthlySavings').value = (currentMonthData.monthlySavings || 0).toFixed(3);
+  if (document.getElementById('bbkTravelFund')) document.getElementById('bbkTravelFund').value = (currentMonthData.travelFund || 0).toFixed(3);
+  if (document.getElementById('bbkTransportProfits')) document.getElementById('bbkTransportProfits').value = (currentMonthData.transportProfits || 0).toFixed(3);
+  if (document.getElementById('bbkAsOfDate')) document.getElementById('bbkAsOfDate').innerText = currentMonthData.asOfDate || defaultAsOfDate;
+  if (document.getElementById('bbkCurrentAmount')) document.getElementById('bbkCurrentAmount').value = (currentMonthData.currentAmount || 0).toFixed(3);
+
+  // Render Celebrations List
+  const celebContainer = document.getElementById('celebrationsListContainer');
+  const monthCelebs = celebrations
+    .filter(c => {
+      const celebMonth = c.date.length >= 7 ? c.date.substring(5, 7) : c.date.substring(0, 2);
+      return celebMonth === selectedMonth;
+    })
+    .sort((a, b) => {
+      const dayA = parseInt(a.date.split('-').pop(), 10);
+      const dayB = parseInt(b.date.split('-').pop(), 10);
+      return dayA - dayB;
+    });
+
+  if (celebContainer) {
+    if (monthCelebs.length === 0) {
+      celebContainer.innerHTML = `<p style="color: #888; font-size: 0.9rem;">No recurring celebrations recorded for ${monthName}.</p>`;
+    } else {
+      celebContainer.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+          ${monthCelebs.map(c => {
+            const dayNum = parseInt(c.date.split('-').pop(), 10);
+            const dateDisplay = `${dayNum}-${dateObj.toLocaleString('default', { month: 'short' })}`;
+            return `
+              <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 6px; border-left: 4px solid #0052cc; display:flex; justify-space-between; align-items:center;">
+                <div>
+                  <strong style="display:block; font-size:0.85rem;">${c.purpose}</strong>
+                  <span style="font-size:0.75rem; color:#64748b;">${dateDisplay}</span>
+                </div>
+                <button onclick="deleteCelebration('${c.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold;">✕</button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+  }
+
+  // Render Emergency Deductions
+  const tbody = document.getElementById('bbkEmergencyTableBody');
+  const emergencyTxList = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
+  
+  let deductionsTotal = 0;
+
+  if (tbody) {
+    let html = '';
+
+    emergencyTxList.forEach(tx => {
+      const amt = Number(tx.amount) || 0;
+      deductionsTotal += amt;
+      const d = tx.date ? new Date(tx.date) : null;
+      const dateStr = d ? `${d.getDate()}-${d.toLocaleString('default', { month: 'short' })}` : '';
+
+      html += `
+        <tr>
+          <td>${tx.description}</td>
+          <td style="text-align:center;">${dateStr}</td>
+          <td style="text-align:right; font-weight:bold; color:#1e293b;">BHD ${amt.toFixed(3)}</td>
+        </tr>
+      `;
+    });
+
+    if (emergencyTxList.length === 0) {
+      html = `<tr><td colspan="3" style="text-align:center; color:#888; padding:15px;">No emergency deductions recorded for ${monthName} ${selectedYear}.</td></tr>`;
+    }
+
+    tbody.innerHTML = html;
+  }
+
+  // Calculate Emergency Totals
+  const subtotal = (currentMonthData.monthlySavings || 0) + (currentMonthData.travelFund || 0) + (currentMonthData.transportProfits || 0) + (currentMonthData.currentAmount || 0);
+  const monthEndTotal = subtotal - deductionsTotal;
+
+  if (document.getElementById('bbkTotalDeductions')) document.getElementById('bbkTotalDeductions').innerText = deductionsTotal.toFixed(3);
+  if (document.getElementById('bbkSubtotal')) document.getElementById('bbkSubtotal').innerText = subtotal.toFixed(3);
+  if (document.getElementById('bbkMonthEndTotal')) document.getElementById('bbkMonthEndTotal').innerText = monthEndTotal.toFixed(3);
+
+  // Set Exact Amount Input Value
+  const exactAmountInput = document.getElementById('bbkExactAmount');
+  if (exactAmountInput) {
+    const finalExactAmount = currentMonthData.exactAmountOverride !== undefined ? currentMonthData.exactAmountOverride : monthEndTotal;
+    exactAmountInput.value = Number(finalExactAmount).toFixed(3);
+  }
+}
+
+// Celebration Form Event Listener
+const celebForm = document.getElementById('celebrationForm');
+if (celebForm) {
+  celebForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const purpose = document.getElementById('celebPurpose').value.trim();
+    const date = document.getElementById('celebDate').value;
+
+    if (purpose && date) {
+      celebrations.push({
+        id: Date.now().toString(),
+        purpose: purpose.toUpperCase(),
+        date: date
+      });
+      localStorage.setItem('celebrations', JSON.stringify(celebrations));
+      document.getElementById('celebPurpose').value = '';
+      renderBBKTab();
+    }
+  });
+}
+
+function deleteCelebration(id) {
+  celebrations = celebrations.filter(c => c.id !== id);
+  localStorage.setItem('celebrations', JSON.stringify(celebrations));
+  renderBBKTab();
+}
+
+function renderTransactions() {
+  const container = document.getElementById('transactionsContainer');
+  const filterElement = document.getElementById('filterMethod');
+  const filterMethod = filterElement ? filterElement.value : 'ALL';
+  const filteredTotalDisplay = document.getElementById('filteredTotalDisplay');
+  const filteredCountDisplay = document.getElementById('filteredCountDisplay');
+
+  if (!container) return;
+
+  let list = monthFilteredTransactions;
+  if (filterMethod === 'EMERGENCY') {
+    list = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
+  } else if (filterMethod !== 'ALL') {
+    list = monthFilteredTransactions.filter(tx => tx.payment_method === filterMethod);
+  }
+
+  const totalAmount = list.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+  
+  if (filteredTotalDisplay) {
+    filteredTotalDisplay.innerText = `BHD ${totalAmount.toFixed(3)}`;
+  }
+  if (filteredCountDisplay) {
+    filteredCountDisplay.innerText = `${list.length} ${list.length === 1 ? 'Item' : 'Items'}`;
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = `<p style="text-align: center; color: #888; padding: 20px 0;">No transactions found for this filter.</p>`;
     return;
   }
 
-  txContainer.innerHTML = finalFiltered.map(tx => {
+  container.innerHTML = list.map(tx => {
     const isEmerg = isEmergencyTx(tx);
 
     return `
@@ -277,37 +593,39 @@ function closeEditModal() {
   editModal.style.display = 'none';
 }
 
-editForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const id = document.getElementById('editId').value;
-  const date = document.getElementById('editDate').value;
-  const description = document.getElementById('editDesc').value;
-  const amount = parseFloat(document.getElementById('editAmount').value);
-  const payment_method = document.getElementById('editMethod').value;
-  const is_emergency = document.getElementById('editIsEmergency').checked;
-  const year_month = date.substring(0, 7);
+if (editForm) {
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('editId').value;
+    const date = document.getElementById('editDate').value;
+    const description = document.getElementById('editDesc').value;
+    const amount = parseFloat(document.getElementById('editAmount').value);
+    const payment_method = document.getElementById('editMethod').value;
+    const is_emergency = document.getElementById('editIsEmergency').checked;
+    const year_month = date.substring(0, 7);
 
-  const { data, error } = await supabaseClient
-    .from('transactions')
-    .update({ 
-      date: date, 
-      description: description, 
-      amount: amount, 
-      payment_method: payment_method, 
-      is_emergency: is_emergency,
-      year_month: year_month 
-    })
-    .eq('id', id)
-    .select();
+    const { data, error } = await supabaseClient
+      .from('transactions')
+      .update({ 
+        date: date, 
+        description: description, 
+        amount: amount, 
+        payment_method: payment_method, 
+        is_emergency: is_emergency,
+        year_month: year_month 
+      })
+      .eq('id', id)
+      .select();
 
-  if (error) {
-    alert("Error updating transaction: " + error.message);
-  } else {
-    closeEditModal();
-    syncAndApplyFilters(year_month);
-    await fetchTransactions();
-  }
-});
+    if (error) {
+      alert("Error updating transaction: " + error.message);
+    } else {
+      closeEditModal();
+      syncAndApplyFilters(year_month);
+      await fetchTransactions();
+    }
+  });
+}
 
 async function deleteTransaction(id) {
   if (!confirm("Are you sure you want to delete this expense?")) return;
@@ -324,52 +642,45 @@ async function deleteTransaction(id) {
   }
 }
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const date = dateInput.value;
-  const description = document.getElementById('desc').value;
-  const amount = parseFloat(document.getElementById('amount').value);
-  const payment_method = document.getElementById('method').value;
-  const is_emergency = document.getElementById('isEmergency').checked;
-  const year_month = date.substring(0, 7);
+if (form) {
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const date = dateInput.value;
+    const description = document.getElementById('desc').value;
+    const amount = parseFloat(document.getElementById('amount').value);
+    const payment_method = document.getElementById('method').value;
+    const is_emergency = document.getElementById('isEmergency').checked;
+    const year_month = date.substring(0, 7);
 
-  const { data: { user } } = await supabaseClient.auth.getUser();
+    const { data: { user } } = await supabaseClient.auth.getUser();
 
-  const { error } = await supabaseClient.from('transactions').insert([
-    { date, description, amount, payment_method, is_emergency, year_month, user_id: user.id }
-  ]);
+    const { error } = await supabaseClient.from('transactions').insert([
+      { date, description, amount, payment_method, is_emergency, year_month, user_id: user.id }
+    ]);
 
-  if (error) {
-    alert("Error adding expense: " + error.message);
-  } else {
-    form.reset();
-    dateInput.value = new Date().toISOString().split('T')[0];
-    syncAndApplyFilters(year_month);
-    fetchTransactions();
-  }
-});
+    if (error) {
+      alert("Error adding expense: " + error.message);
+    } else {
+      form.reset();
+      dateInput.value = new Date().toISOString().split('T')[0];
+      syncAndApplyFilters(year_month);
+      fetchTransactions();
+    }
+  });
+}
 
-checkAuthSession();
-
-// Sync report month picker with main month filters
-const reportMonthPicker = document.getElementById('reportMonthPicker');
-if (reportMonthPicker) reportMonthPicker.value = currentYearMonth;
-
-// Update summary text in Reports Tab
-// Update summary text AND transaction report table in Reports Tab
 function updateReportSummary() {
-  const selectedMonth = monthPicker.value;
+  const selectedMonth = monthPicker ? monthPicker.value : currentYearMonth;
   const list = document.getElementById('reportSummaryList');
   const tableBody = document.getElementById('reportTxTableBody');
   const txCountLabel = document.getElementById('reportTxCount');
   
   if (!list || !tableBody) return;
 
-  // 1. Gather Summary Values
-  const totalExp = document.getElementById('dashTotalExpenses').innerText;
-  const totalSav = document.getElementById('dashTotalSavings').innerText;
-  const ccPay = document.getElementById('kpiCC').innerText;
-  const emergency = document.getElementById('kpiEmergency').innerText;
+  const totalExp = document.getElementById('dashTotalExpenses') ? document.getElementById('dashTotalExpenses').innerText : 'BHD 0.000';
+  const totalSav = document.getElementById('dashTotalSavings') ? document.getElementById('dashTotalSavings').innerText : 'BHD 0.000';
+  const ccPay = document.getElementById('kpiCC') ? document.getElementById('kpiCC').innerText : 'BHD 0.000';
+  const emergency = document.getElementById('kpiEmergency') ? document.getElementById('kpiEmergency').innerText : 'BHD 0.000';
 
   list.innerHTML = `
     <li><strong>Selected Period:</strong> ${selectedMonth}</li>
@@ -380,7 +691,6 @@ function updateReportSummary() {
     <li><strong>Total Transactions Logged:</strong> ${monthFilteredTransactions.length} items</li>
   `;
 
-  // 2. Render Transaction Breakdown Table
   if (txCountLabel) txCountLabel.innerText = `${monthFilteredTransactions.length} Items`;
 
   if (monthFilteredTransactions.length === 0) {
@@ -405,19 +715,10 @@ function updateReportSummary() {
     `;
   }).join('');
 }
-// Hook summary updates into your main applyFilters function
-const originalApplyFilters = applyFilters;
-applyFilters = function() {
-  originalApplyFilters();
-  if (reportMonthPicker) reportMonthPicker.value = monthPicker.value;
-  updateReportSummary();
-};
 
-// EXPORT TO EXCEL
 function exportToExcel() {
-  const selectedMonth = monthPicker.value;
+  const selectedMonth = monthPicker ? monthPicker.value : currentYearMonth;
   
-  // Format transaction rows for Excel output
   const dataToExport = monthFilteredTransactions.map(tx => ({
     Date: tx.date,
     Description: tx.description,
@@ -438,13 +739,11 @@ function exportToExcel() {
   XLSX.writeFile(workbook, `Expense_Report_${selectedMonth}.xlsx`);
 }
 
-// EXPORT TO PDF
 function exportToPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  const selectedMonth = monthPicker.value;
+  const selectedMonth = monthPicker ? monthPicker.value : currentYearMonth;
 
-  // Document Title & Metadata
   doc.setFontSize(16);
   doc.text(`Monthly Expense Report (${selectedMonth})`, 14, 15);
   
@@ -452,7 +751,6 @@ function exportToPDF() {
   doc.text(`Total Expenses: ${document.getElementById('dashTotalExpenses').innerText}`, 14, 23);
   doc.text(`Total Savings: ${document.getElementById('dashTotalSavings').innerText}`, 14, 29);
 
-  // Table Data Formatting
   const tableRows = monthFilteredTransactions.map(tx => [
     tx.date,
     tx.description,
@@ -471,3 +769,5 @@ function exportToPDF() {
 
   doc.save(`Expense_Report_${selectedMonth}.pdf`);
 }
+
+checkAuthSession();
