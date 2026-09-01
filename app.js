@@ -298,7 +298,6 @@ function calculateBatelco() {
   calculateSummaries();
 }
 
-// Helper: Calculate last day of previous month for display (e.g. 30-Jun-2026)
 function getFormattedPreviousMonthEnd(yearMonthStr) {
   const [year, month] = yearMonthStr.split('-').map(Number);
   const date = new Date(year, month - 1, 0); 
@@ -307,7 +306,6 @@ function getFormattedPreviousMonthEnd(yearMonthStr) {
   return `${day}-${monthName}-${date.getFullYear()}`;
 }
 
-// Helper: Get YYYY-MM for the next month
 function getNextMonthKey(yearMonthStr) {
   const [year, month] = yearMonthStr.split('-').map(Number);
   const nextDate = new Date(year, month, 1);
@@ -316,7 +314,6 @@ function getNextMonthKey(yearMonthStr) {
   return `${nextYear}-${nextMonth}`;
 }
 
-// Save inputs when user modifies manual values in BBK Tab
 function saveAndRenderBBKInputs() {
   const selectedMonthStr = bbkMonthPicker ? bbkMonthPicker.value : currentYearMonth;
   
@@ -349,14 +346,12 @@ function saveAndRenderBBKInputs() {
   if (document.getElementById('bbkSubtotal')) document.getElementById('bbkSubtotal').innerText = subtotal.toFixed(3);
   if (document.getElementById('bbkMonthEndTotal')) document.getElementById('bbkMonthEndTotal').innerText = monthEndTotal.toFixed(3);
 
-  // If exact amount hasn't been manually edited, reflect Month End Total
   const exactAmountInput = document.getElementById('bbkExactAmount');
   if (exactAmountInput && existingData.exactAmountOverride === undefined) {
     exactAmountInput.value = monthEndTotal.toFixed(3);
   }
 }
 
-// Handler specifically for editing "exact amount" and pushing to next month's "current amount"
 function handleExactAmountEdit() {
   const selectedMonthStr = bbkMonthPicker ? bbkMonthPicker.value : currentYearMonth;
   const exactVal = parseFloat(document.getElementById('bbkExactAmount')?.value) || 0;
@@ -365,10 +360,8 @@ function handleExactAmountEdit() {
     bbkMonthlyData[selectedMonthStr] = {};
   }
   
-  // Store the manual exact amount override for current month
   bbkMonthlyData[selectedMonthStr].exactAmountOverride = exactVal;
 
-  // Carry forward this value as the "Current Amount as of" for the NEXT month
   const nextMonthKey = getNextMonthKey(selectedMonthStr);
   if (!bbkMonthlyData[nextMonthKey]) {
     bbkMonthlyData[nextMonthKey] = {
@@ -383,9 +376,9 @@ function handleExactAmountEdit() {
   }
 
   localStorage.setItem('bbkMonthlyData', JSON.stringify(bbkMonthlyData));
+  calculateSummaries();
 }
 
-// Render BBK Tab Data
 function renderBBKTab() {
   const selectedMonthStr = bbkMonthPicker ? bbkMonthPicker.value : currentYearMonth;
   const [selectedYear, selectedMonth] = selectedMonthStr.split('-');
@@ -412,7 +405,6 @@ function renderBBKTab() {
   if (document.getElementById('bbkAsOfDate')) document.getElementById('bbkAsOfDate').innerText = currentMonthData.asOfDate || defaultAsOfDate;
   if (document.getElementById('bbkCurrentAmount')) document.getElementById('bbkCurrentAmount').value = (currentMonthData.currentAmount || 0).toFixed(3);
 
-  // Render Celebrations List
   const celebContainer = document.getElementById('celebrationsListContainer');
   const monthCelebs = celebrations
     .filter(c => {
@@ -435,7 +427,7 @@ function renderBBKTab() {
             const dayNum = parseInt(c.date.split('-').pop(), 10);
             const dateDisplay = `${dayNum}-${dateObj.toLocaleString('default', { month: 'short' })}`;
             return `
-              <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 6px; border-left: 4px solid #0052cc; display:flex; justify-space-between; align-items:center;">
+              <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 6px; border-left: 4px solid #0052cc; display:flex; justify-content:space-between; align-items:center;">
                 <div>
                   <strong style="display:block; font-size:0.85rem;">${c.purpose}</strong>
                   <span style="font-size:0.75rem; color:#64748b;">${dateDisplay}</span>
@@ -449,7 +441,6 @@ function renderBBKTab() {
     }
   }
 
-  // Render Emergency Deductions
   const tbody = document.getElementById('bbkEmergencyTableBody');
   const emergencyTxList = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
   
@@ -480,7 +471,6 @@ function renderBBKTab() {
     tbody.innerHTML = html;
   }
 
-  // Calculate Emergency Totals
   const subtotal = (currentMonthData.monthlySavings || 0) + (currentMonthData.travelFund || 0) + (currentMonthData.transportProfits || 0) + (currentMonthData.currentAmount || 0);
   const monthEndTotal = subtotal - deductionsTotal;
 
@@ -488,7 +478,6 @@ function renderBBKTab() {
   if (document.getElementById('bbkSubtotal')) document.getElementById('bbkSubtotal').innerText = subtotal.toFixed(3);
   if (document.getElementById('bbkMonthEndTotal')) document.getElementById('bbkMonthEndTotal').innerText = monthEndTotal.toFixed(3);
 
-  // Set Exact Amount Input Value
   const exactAmountInput = document.getElementById('bbkExactAmount');
   if (exactAmountInput) {
     const finalExactAmount = currentMonthData.exactAmountOverride !== undefined ? currentMonthData.exactAmountOverride : monthEndTotal;
@@ -496,7 +485,6 @@ function renderBBKTab() {
   }
 }
 
-// Celebration Form Event Listener
 const celebForm = document.getElementById('celebrationForm');
 if (celebForm) {
   celebForm.addEventListener('submit', (e) => {
