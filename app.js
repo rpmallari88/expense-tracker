@@ -415,8 +415,21 @@ async function renderBBKTab() {
 
   const defaultAsOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
 
-  // Define strict chronological timeline
-  const chronologicalMonths = ["2026-08", "2026-09"];
+  // Dynamically generate all months from base August 2026 up to the selected month
+  const chronologicalMonths = [];
+  let currY = 2026;
+  let currM = 8;
+  const [targetY, targetM] = selectedMonthStr.split('-').map(Number);
+
+  while (currY < targetY || (currY === targetY && currM <= targetM)) {
+    const formattedM = String(currM).padStart(2, '0');
+    chronologicalMonths.push(`${currY}-${formattedM}`);
+    currM++;
+    if (currM > 12) {
+      currM = 1;
+      currY++;
+    }
+  }
 
   // Ensure base August value is set
   if (!bbkMonthlyData["2026-08"]) {
@@ -434,7 +447,6 @@ async function renderBBKTab() {
   // Sequentially calculate carry-overs
   for (let i = 0; i < chronologicalMonths.length; i++) {
     const mKey = chronologicalMonths[i];
-    if (mKey > selectedMonthStr) break;
 
     if (!bbkMonthlyData[mKey]) {
       bbkMonthlyData[mKey] = {
