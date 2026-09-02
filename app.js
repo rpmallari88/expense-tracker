@@ -466,41 +466,45 @@ function renderBBKTab() {
   const defaultAsOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
 
   // --- AUTOMATIC CARRY-OVER LOGIC ---
+  const prevMonthKey = getPreviousMonthKey(selectedMonthStr);
+  const prevMonthData = bbkMonthlyData[prevMonthKey];
+
+  let calculatedCarryOver = 0.000;
+
+  if (prevMonthData) {
+    if (prevMonthData.exactAmountOverride !== undefined && prevMonthData.exactAmountOverride !== null) {
+      calculatedCarryOver = prevMonthData.exactAmountOverride;
+    } else {
+      // Calculate previous month's ending total dynamically
+      const prevTxList = allTransactions.filter(tx => tx.date && tx.date.substring(0, 7) === prevMonthKey && isEmergencyTx(tx));
+      const prevDeductions = prevTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+      const prevSubtotal = (prevMonthData.monthlySavings || 0) + 
+                           (prevMonthData.travelFund || 0) + 
+                           (prevMonthData.transportProfits || 0) + 
+                           (prevMonthData.currentAmount || 0);
+      calculatedCarryOver = prevSubtotal - prevDeductions;
+    }
+  }
+
   let currentMonthData = bbkMonthlyData[selectedMonthStr];
 
   if (!currentMonthData) {
-    // Look up previous month
-    const prevMonthKey = getPreviousMonthKey(selectedMonthStr);
-    const prevMonthData = bbkMonthlyData[prevMonthKey];
-
-    let carriedOverAmount = 0.000;
-
-    if (prevMonthData) {
-      if (prevMonthData.exactAmountOverride !== undefined) {
-        carriedOverAmount = prevMonthData.exactAmountOverride;
-      } else {
-        // Calculate previous month's ending total
-        const prevTxList = allTransactions.filter(tx => tx.date && tx.date.substring(0, 7) === prevMonthKey && isEmergencyTx(tx));
-        const prevDeductions = prevTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-        const prevSubtotal = (prevMonthData.monthlySavings || 0) + 
-                             (prevMonthData.travelFund || 0) + 
-                             (prevMonthData.transportProfits || 0) + 
-                             (prevMonthData.currentAmount || 0);
-        carriedOverAmount = prevSubtotal - prevDeductions;
-      }
-    }
-
-    // Initialize the new month automatically with carried over balance
+    // Initialize new month dynamically
     currentMonthData = {
       monthlySavings: 0.000,
       travelFund: 0.000,
       transportProfits: 0.000,
       asOfDate: defaultAsOfDate,
-      currentAmount: carriedOverAmount
+      currentAmount: calculatedCarryOver
     };
-
     bbkMonthlyData[selectedMonthStr] = currentMonthData;
     localStorage.setItem('bbkMonthlyData', JSON.stringify(bbkMonthlyData));
+  } else {
+    // Update existing unedited currentAmount with carried-over balance if previous month updated
+    if (calculatedCarryOver !== 0 && (!currentMonthData.currentAmount || currentMonthData.currentAmount === 0)) {
+      currentMonthData.currentAmount = calculatedCarryOver;
+      localStorage.setItem('bbkMonthlyData', JSON.stringify(bbkMonthlyData));
+    }
   }
   // --- END AUTOMATIC CARRY-OVER LOGIC ---
 
