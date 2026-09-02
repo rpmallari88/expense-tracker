@@ -53,12 +53,12 @@ async function checkAuthSession() {
     loginModal.style.display = 'none';
     appContainer.style.display = 'block';
     
-    // Fetch data first
+    // Fetch all remote data first
     await fetchTransactions();
     await fetchBBKMonthlyData();
 
-    // Ensure state and summaries are fully rendered on initial load
-    applyFilters();
+    // Force sync and run calculations across all tabs
+    syncAndApplyFilters(currentYearMonth);
     calculateBatelco();
 
     switchTab('dashboardTab', document.querySelector('.nav-tabs .tab-btn'));
@@ -95,7 +95,6 @@ async function fetchBBKMonthlyData() {
     });
   }
 
-  // Render BBK tab state first so carry-overs are calculated, then compute dashboard summaries
   renderBBKTab();
   calculateSummaries();
 }
@@ -171,7 +170,6 @@ async function fetchTransactions() {
   }
 
   allTransactions = data || [];
-  applyFilters();
 }
 
 function syncAndApplyFilters(selectedMonth) {
@@ -255,7 +253,7 @@ function calculateSummaries() {
   const availableExpenseBudget = 590.000;
   const totalSavings = availableExpenseBudget - actualNonSavingsExpenses;
 
-  // Retrieve current BBK Exact Amount
+  // Retrieve current BBK Exact Amount dynamically
   const selectedMonthStr = monthPicker ? monthPicker.value : currentYearMonth;
   const currentMonthData = bbkMonthlyData[selectedMonthStr] || {};
   const emergencyTxList = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
@@ -331,14 +329,6 @@ function getFormattedPreviousMonthEnd(yearMonthStr) {
   const day = String(date.getDate()).padStart(2, '0');
   const monthName = date.toLocaleString('default', { month: 'short' });
   return `${day}-${monthName}-${date.getFullYear()}`;
-}
-
-function getNextMonthKey(yearMonthStr) {
-  const [year, month] = yearMonthStr.split('-').map(Number);
-  const nextDate = new Date(year, month, 1);
-  const nextYear = nextDate.getFullYear();
-  const nextMonth = String(nextDate.getMonth() + 1).padStart(2, '0');
-  return `${nextYear}-${nextMonth}`;
 }
 
 function getPreviousMonthKey(yearMonthStr) {
@@ -418,7 +408,7 @@ async function toggleBBKFieldEdit(inputId, btnId) {
 }
 
 function renderBBKTab() {
-  const selectedMonthStr = bbkMonthPicker ? bbkMonthPicker.value : currentYearMonth;
+  const selectedMonthStr = bbkMonthPicker && bbkMonthPicker.value ? bbkMonthPicker.value : (monthPicker ? monthPicker.value : currentYearMonth);
   const [selectedYear, selectedMonth] = selectedMonthStr.split('-');
   
   const dateObj = new Date(`${selectedMonthStr}-01`);
@@ -429,23 +419,27 @@ function renderBBKTab() {
 
   const defaultAsOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
 
-  // --- AUTOMATIC CARRY-OVER LOGIC ---
-  const prevMonthKey = getPreviousMonthKey(selectedMonthStr);
-  const prevMonthData = bbkMonthlyData[prevMonthKey];
-
+  // --- REVISED AUTOMATIC CARRY-OVER LOGIC ---
+  // Find the most recent month recorded in bbkMonthlyData prior to current month
+  const availableMonths = Object.keys(bbkMonthlyData).filter(m => m < selectedMonthStr).sort();
   let calculatedCarryOver = 0.000;
 
-  if (prevMonthData) {
-    if (prevMonthData.exactAmountOverride !== undefined && prevMonthData.exactAmountOverride !== null) {
-      calculatedCarryOver = prevMonthData.exactAmountOverride;
-    } else {
-      const prevTxList = allTransactions.filter(tx => tx.date && tx.date.substring(0, 7) === prevMonthKey && isEmergencyTx(tx));
-      const prevDeductions = prevTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-      const prevSubtotal = (prevMonthData.monthlySavings || 0) + 
-                           (prevMonthData.travelFund || 0) + 
-                           (prevMonthData.transportProfits || 0) + 
-                           (prevMonthData.currentAmount || 0);
-      calculatedCarryOver = prevSubtotal - prevDeductions;
+  if (availableMonths.length > 0) {
+    const latestPrevKey = availableMonths[availableMonths.length - 1];
+    const prevMonthData = bbkMonthlyData[latestPrevKey];
+
+    if (prevMonthData) {
+      if (prevMonthData.exactAmountOverride !== undefined && prevMonthData.exactAmountOverride !== null) {
+        calculatedCarryOver = prevMonthData.exactAmountOverride;
+      } else {
+        const prevTxList = allTransactions.filter(tx => tx.date && tx.date.substring(0, 7) === latestPrevKey && isEmergencyTx(tx));
+        const prevDeductions = prevTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+        const prevSubtotal = (prevMonthData.monthlySavings || 0) + 
+                             (prevMonthData.travelFund || 0) + 
+                             (prevMonthData.transportProfits || 0) + 
+                             (prevMonthData.currentAmount || 0);
+        calculatedCarryOver = prevSubtotal - prevDeductions;
+      }
     }
   }
 
@@ -460,8 +454,11 @@ function renderBBKTab() {
       currentAmount: calculatedCarryOver
     };
     bbkMonthlyData[selectedMonthStr] = currentMonthData;
-  } else if (calculatedCarryOver !== 0 && (!currentMonthData.currentAmount || currentMonthData.currentAmount === 0)) {
-    currentMonthData.currentAmount = calculatedCarryOver;
+  } else {
+    // If current amount is unassigned or 0 but we have calculated carryover, update it
+    if (calculatedCarryOver !== 0 && (!currentMonthData.currentAmount || currentMonthData.currentAmount === 0)) {
+      currentMonthData.currentAmount = calculatedCarryOver;
+    }
   }
   // --- END AUTOMATIC CARRY-OVER LOGIC ---
 
@@ -655,8 +652,8 @@ if (editForm) {
       alert("Error updating transaction: " + error.message);
     } else {
       closeEditModal();
-      syncAndApplyFilters(year_month);
       await fetchTransactions();
+      syncAndApplyFilters(year_month);
     }
   });
 }
@@ -672,7 +669,8 @@ async function deleteTransaction(id) {
   if (error) {
     alert("Error deleting transaction: " + error.message);
   } else {
-    fetchTransactions();
+    await fetchTransactions();
+    applyFilters();
   }
 }
 
@@ -697,8 +695,8 @@ if (form) {
     } else {
       form.reset();
       dateInput.value = new Date().toISOString().split('T')[0];
+      await fetchTransactions();
       syncAndApplyFilters(year_month);
-      fetchTransactions();
     }
   });
 }
