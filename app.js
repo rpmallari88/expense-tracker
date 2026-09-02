@@ -32,14 +32,12 @@ let celebrations = JSON.parse(localStorage.getItem('celebrations')) || [
   { id: '6', date: '2026-07-21', purpose: "ANNA'S BIRTHDAY" }
 ];
 
-// BBK per-month object (populated dynamically from Supabase)
+// BBK per-month object
 let bbkMonthlyData = {};
 
-// Calculate dates FIRST
 const today = new Date();
 const currentYearMonth = today.toISOString().substring(0, 7);
 
-// Assign values SECOND
 if (monthPicker) monthPicker.value = currentYearMonth;
 if (kfhMonthPicker) kfhMonthPicker.value = currentYearMonth;
 if (txMonthPicker) txMonthPicker.value = currentYearMonth;
@@ -78,7 +76,7 @@ async function fetchBBKMonthlyData() {
   }
 
   bbkMonthlyData = {};
-  if (data) {
+  if (data && data.length > 0) {
     data.forEach(row => {
       bbkMonthlyData[row.year_month] = {
         monthlySavings: Number(row.monthly_savings) || 0,
@@ -91,6 +89,18 @@ async function fetchBBKMonthlyData() {
           : undefined
       };
     });
+  }
+
+  // Ensure Base Seed for August 2026 is strictly enforced if uninitialized or 0
+  if (!bbkMonthlyData["2026-08"] || bbkMonthlyData["2026-08"].currentAmount === 0) {
+    bbkMonthlyData["2026-08"] = {
+      monthlySavings: bbkMonthlyData["2026-08"]?.monthlySavings || 0,
+      travelFund: bbkMonthlyData["2026-08"]?.travelFund || 0,
+      transportProfits: bbkMonthlyData["2026-08"]?.transportProfits || 0,
+      asOfDate: "31-Jul-2026",
+      currentAmount: 133.145,
+      exactAmountOverride: bbkMonthlyData["2026-08"]?.exactAmountOverride
+    };
   }
 
   await renderBBKTab();
@@ -251,7 +261,6 @@ function calculateSummaries() {
   const availableExpenseBudget = 590.000;
   const totalSavings = availableExpenseBudget - actualNonSavingsExpenses;
 
-  // Retrieve current BBK Exact Amount
   const selectedMonthStr = monthPicker ? monthPicker.value : currentYearMonth;
   const currentMonthData = bbkMonthlyData[selectedMonthStr] || {};
   const emergencyTxList = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
@@ -261,7 +270,6 @@ function calculateSummaries() {
   const monthEndTotal = subtotal - deductionsTotal;
   const exactBBKAmount = currentMonthData.exactAmountOverride !== undefined ? currentMonthData.exactAmountOverride : monthEndTotal;
 
-  // Update Dashboard Cards
   if (document.getElementById('dashTotalExpenses')) document.getElementById('dashTotalExpenses').innerText = `BHD ${monthlyTotal.toFixed(3)}`;
   if (document.getElementById('dashTotalSavings')) document.getElementById('dashTotalSavings').innerText = `BHD ${totalSavings.toFixed(3)}`;
   if (document.getElementById('dashBBKCurrentAmount')) document.getElementById('dashBBKCurrentAmount').innerText = `BHD ${Number(exactBBKAmount).toFixed(3)}`;
@@ -340,7 +348,7 @@ async function toggleBBKFieldEdit(inputId, btnId) {
       monthlySavings: 0,
       travelFund: 0,
       transportProfits: 0,
-      currentAmount: 0,
+      currentAmount: selectedMonthStr === "2026-08" ? 133.145 : 0,
       asOfDate: getFormattedPreviousMonthEnd(selectedMonthStr)
     };
   }
@@ -407,7 +415,10 @@ async function renderBBKTab() {
 
   const defaultAsOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
 
-  // Default seed values if month missing
+  // Define strict chronological timeline
+  const chronologicalMonths = ["2026-08", "2026-09"];
+
+  // Ensure base August value is set
   if (!bbkMonthlyData["2026-08"]) {
     bbkMonthlyData["2026-08"] = {
       monthlySavings: 0,
@@ -416,13 +427,13 @@ async function renderBBKTab() {
       asOfDate: "31-Jul-2026",
       currentAmount: 133.145
     };
+  } else if (bbkMonthlyData["2026-08"].currentAmount === 0) {
+    bbkMonthlyData["2026-08"].currentAmount = 133.145;
   }
 
-  // --- STRICT BASE VS DYNAMIC CARRY-OVER RESOLUTION ---
-  const allKnownMonths = Array.from(new Set([...Object.keys(bbkMonthlyData), selectedMonthStr])).sort();
-
-  for (let i = 0; i < allKnownMonths.length; i++) {
-    const mKey = allKnownMonths[i];
+  // Sequentially calculate carry-overs
+  for (let i = 0; i < chronologicalMonths.length; i++) {
+    const mKey = chronologicalMonths[i];
     if (mKey > selectedMonthStr) break;
 
     if (!bbkMonthlyData[mKey]) {
@@ -435,28 +446,30 @@ async function renderBBKTab() {
       };
     }
 
-    // Find preceding month
-    const priorKeys = allKnownMonths.filter(k => k < mKey);
-    if (priorKeys.length > 0) {
-      const prevKey = priorKeys[priorKeys.length - 1];
+    if (i > 0) {
+      const prevKey = chronologicalMonths[i - 1];
       const prevData = bbkMonthlyData[prevKey];
 
-      if (prevData) {
-        const prevTxList = allTransactions.filter(tx => tx.date && tx.date.substring(0, 7) === prevKey && isEmergencyTx(tx));
-        const prevDeductions = prevTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+      const prevTxList = allTransactions.filter(tx => tx.date && tx.date.substring(0, 7) === prevKey && isEmergencyTx(tx));
+      const prevDeductions = prevTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
 
-        const prevSubtotal = (prevData.monthlySavings || 0) + 
-                             (prevData.travelFund || 0) + 
-                             (prevData.transportProfits || 0) + 
-                             (prevData.currentAmount || 0);
+      const prevSubtotal = (prevData.monthlySavings || 0) + 
+                           (prevData.travelFund || 0) + 
+                           (prevData.transportProfits || 0) + 
+                           (prevData.currentAmount || 0);
 
-        // Dynamically assign prior month net end balance into current month's starting currentAmount
-        bbkMonthlyData[mKey].currentAmount = prevSubtotal - prevDeductions;
-      }
+      // Prior month end net balance carries over into current month's starting currentAmount
+      bbkMonthlyData[mKey].currentAmount = prevSubtotal - prevDeductions;
     }
   }
 
-  const currentMonthData = bbkMonthlyData[selectedMonthStr];
+  const currentMonthData = bbkMonthlyData[selectedMonthStr] || {
+    monthlySavings: 0,
+    travelFund: 0,
+    transportProfits: 0,
+    asOfDate: defaultAsOfDate,
+    currentAmount: 0
+  };
 
   if (document.getElementById('bbkMonthlySavings')) document.getElementById('bbkMonthlySavings').value = (currentMonthData.monthlySavings || 0).toFixed(3);
   if (document.getElementById('bbkTravelFund')) document.getElementById('bbkTravelFund').value = (currentMonthData.travelFund || 0).toFixed(3);
@@ -798,7 +811,6 @@ function exportToPDF() {
   doc.save(`Expense_Report_${selectedMonth}.pdf`);
 }
 
-// Celebration Form Submission Listener
 const celebrationForm = document.getElementById('celebrationForm');
 if (celebrationForm) {
   celebrationForm.addEventListener('submit', (e) => {
