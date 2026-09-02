@@ -91,8 +91,8 @@ async function fetchBBKMonthlyData() {
     });
   }
 
-  // Ensure Base Seed for August 2026 is strictly enforced if uninitialized or 0
-  if (!bbkMonthlyData["2026-08"] || bbkMonthlyData["2026-08"].currentAmount === 0) {
+  // FORCE HARD OVERRIDE: Prevent August 2026 from ever defaulting to 0 or negative
+  if (!bbkMonthlyData["2026-08"] || bbkMonthlyData["2026-08"].currentAmount <= 0) {
     bbkMonthlyData["2026-08"] = {
       monthlySavings: bbkMonthlyData["2026-08"]?.monthlySavings || 0,
       travelFund: bbkMonthlyData["2026-08"]?.travelFund || 0,
@@ -101,6 +101,19 @@ async function fetchBBKMonthlyData() {
       currentAmount: 133.145,
       exactAmountOverride: bbkMonthlyData["2026-08"]?.exactAmountOverride
     };
+
+    // Auto-correct the bad record in Supabase immediately
+    await supabaseClient
+      .from('bbk_monthly_data')
+      .upsert({
+        year_month: "2026-08",
+        monthly_savings: bbkMonthlyData["2026-08"].monthlySavings,
+        travel_fund: bbkMonthlyData["2026-08"].travelFund,
+        transport_profits: bbkMonthlyData["2026-08"].transportProfits,
+        as_of_date: "31-Jul-2026",
+        current_amount: 133.145,
+        updated_at: new Date().toISOString()
+      });
   }
 
   await renderBBKTab();
@@ -411,27 +424,22 @@ async function renderBBKTab() {
   const monthName = dateObj.toLocaleString('default', { month: 'long' }).toUpperCase();
 
   const labelElem = document.getElementById('bbkHeaderMonthLabel');
-  if (labelElem) labelElem.innerText = `${monthName} ${selectedYear}`;
+  if (labelElem) labelElem.innerText = `${monthName}${selectedYear}`;
 
   const defaultAsOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
 
-  // Define strict chronological timeline
   const chronologicalMonths = ["2026-08", "2026-09"];
 
-  // Ensure base August value is set
-  if (!bbkMonthlyData["2026-08"]) {
+  if (!bbkMonthlyData["2026-08"] || bbkMonthlyData["2026-08"].currentAmount <= 0) {
     bbkMonthlyData["2026-08"] = {
-      monthlySavings: 0,
-      travelFund: 0,
-      transportProfits: 0,
+      monthlySavings: bbkMonthlyData["2026-08"]?.monthlySavings || 0,
+      travelFund: bbkMonthlyData["2026-08"]?.travelFund || 0,
+      transportProfits: bbkMonthlyData["2026-08"]?.transportProfits || 0,
       asOfDate: "31-Jul-2026",
       currentAmount: 133.145
     };
-  } else if (bbkMonthlyData["2026-08"].currentAmount === 0) {
-    bbkMonthlyData["2026-08"].currentAmount = 133.145;
   }
 
-  // Sequentially calculate carry-overs
   for (let i = 0; i < chronologicalMonths.length; i++) {
     const mKey = chronologicalMonths[i];
     if (mKey > selectedMonthStr) break;
@@ -458,7 +466,6 @@ async function renderBBKTab() {
                            (prevData.transportProfits || 0) + 
                            (prevData.currentAmount || 0);
 
-      // Prior month end net balance carries over into current month's starting currentAmount
       bbkMonthlyData[mKey].currentAmount = prevSubtotal - prevDeductions;
     }
   }
@@ -537,7 +544,7 @@ async function renderBBKTab() {
     });
 
     if (emergencyTxList.length === 0) {
-      html = `<tr><td colspan="3" style="text-align:center; color:#888; padding:15px;">No emergency deductions recorded for ${monthName} ${selectedYear}.</td></tr>`;
+      html = `<tr><td colspan="3" style="text-align:center; color:#888; padding:15px;">No emergency deductions recorded for ${monthName}${selectedYear}.</td></tr>`;
     }
 
     tbody.innerHTML = html;
@@ -585,7 +592,7 @@ function renderTransactions() {
     filteredTotalDisplay.innerText = `BHD ${totalAmount.toFixed(3)}`;
   }
   if (filteredCountDisplay) {
-    filteredCountDisplay.innerText = `${list.length} ${list.length === 1 ? 'Item' : 'Items'}`;
+    filteredCountDisplay.innerText = `${list.length}${list.length === 1 ? 'Item' : 'Items'}`;
   }
 
   if (list.length === 0) {
@@ -600,10 +607,9 @@ function renderTransactions() {
       <div class="tx-card ${isEmerg ? 'is-emergency' : ''}">
         <div class="tx-info">
           <span class="tx-desc">
-            ${tx.description || 'No Description'}
-            ${isEmerg ? '<span class="emergency-badge">Emergency</span>' : ''}
+            ${tx.description \vert{}\vert{} 'No Description'}${isEmerg ? '<span class="emergency-badge">Emergency</span>' : ''}
           </span>
-          <span class="tx-meta">${tx.date || ''} • ${tx.payment_method || ''}</span>
+          <span class="tx-meta">${tx.date \vert{}\vert{} ''} •${tx.payment_method || ''}</span>
         </div>
         <div class="tx-right">
           <span class="tx-amount">${Number(tx.amount).toFixed(3)} BHD</span>
