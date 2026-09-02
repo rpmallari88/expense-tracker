@@ -379,6 +379,80 @@ function handleExactAmountEdit() {
   calculateSummaries();
 }
 
+function getPreviousMonthKey(yearMonthStr) {
+  const [year, month] = yearMonthStr.split('-').map(Number);
+  const prevDate = new Date(year, month - 2, 1);
+  const prevYear = prevDate.getFullYear();
+  const prevMonth = String(prevDate.getMonth() + 1).padStart(2, '0');
+  return `${prevYear}-${prevMonth}`;
+}
+
+function toggleBBKFieldEdit(inputId, btnId) {
+  const inputElem = document.getElementById(inputId);
+  const btnElem = document.getElementById(btnId);
+  
+  if (!inputElem || !btnElem) return;
+
+  const selectedMonthStr = bbkMonthPicker ? bbkMonthPicker.value : currentYearMonth;
+  if (!bbkMonthlyData[selectedMonthStr]) {
+    bbkMonthlyData[selectedMonthStr] = {
+      monthlySavings: 0,
+      travelFund: 0,
+      transportProfits: 0,
+      currentAmount: 0,
+      asOfDate: getFormattedPreviousMonthEnd(selectedMonthStr)
+    };
+  }
+
+  const isReadOnly = inputElem.hasAttribute('readonly');
+
+  if (isReadOnly) {
+    // UNLOCK FOR EDITING
+    inputElem.removeAttribute('readonly');
+    inputElem.focus();
+    inputElem.select();
+    btnElem.innerText = 'Save';
+    btnElem.classList.add('btn-saving');
+  } else {
+    // LOCK AND SAVE VALUES
+    inputElem.setAttribute('readonly', 'true');
+    btnElem.innerText = 'Edit';
+    btnElem.classList.remove('btn-saving');
+
+    const newValue = parseFloat(inputElem.value) || 0;
+
+    // Map input IDs to bbkMonthlyData keys
+    if (inputId === 'bbkMonthlySavings') {
+      bbkMonthlyData[selectedMonthStr].monthlySavings = newValue;
+    } else if (inputId === 'bbkTravelFund') {
+      bbkMonthlyData[selectedMonthStr].travelFund = newValue;
+    } else if (inputId === 'bbkTransportProfits') {
+      bbkMonthlyData[selectedMonthStr].transportProfits = newValue;
+    } else if (inputId === 'bbkExactAmount') {
+      bbkMonthlyData[selectedMonthStr].exactAmountOverride = newValue;
+      
+      // Update next month's starting currentAmount if exact amount changes
+      const nextMonthKey = getNextMonthKey(selectedMonthStr);
+      if (!bbkMonthlyData[nextMonthKey]) {
+        bbkMonthlyData[nextMonthKey] = {
+          monthlySavings: 0.000,
+          travelFund: 0.000,
+          transportProfits: 0.000,
+          asOfDate: getFormattedPreviousMonthEnd(nextMonthKey),
+          currentAmount: newValue
+        };
+      } else {
+        bbkMonthlyData[nextMonthKey].currentAmount = newValue;
+      }
+    }
+
+    // Save to LocalStorage and update calculations
+    localStorage.setItem('bbkMonthlyData', JSON.stringify(bbkMonthlyData));
+    calculateSummaries();
+    renderBBKTab();
+  }
+}
+
 function renderBBKTab() {
   const selectedMonthStr = bbkMonthPicker ? bbkMonthPicker.value : currentYearMonth;
   const [selectedYear, selectedMonth] = selectedMonthStr.split('-');
@@ -391,13 +465,44 @@ function renderBBKTab() {
 
   const defaultAsOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
 
-  const currentMonthData = bbkMonthlyData[selectedMonthStr] || {
-    monthlySavings: 0.000,
-    travelFund: 0.000,
-    transportProfits: 0.000,
-    asOfDate: defaultAsOfDate,
-    currentAmount: 0.000
-  };
+  // --- AUTOMATIC CARRY-OVER LOGIC ---
+  let currentMonthData = bbkMonthlyData[selectedMonthStr];
+
+  if (!currentMonthData) {
+    // Look up previous month
+    const prevMonthKey = getPreviousMonthKey(selectedMonthStr);
+    const prevMonthData = bbkMonthlyData[prevMonthKey];
+
+    let carriedOverAmount = 0.000;
+
+    if (prevMonthData) {
+      if (prevMonthData.exactAmountOverride !== undefined) {
+        carriedOverAmount = prevMonthData.exactAmountOverride;
+      } else {
+        // Calculate previous month's ending total
+        const prevTxList = allTransactions.filter(tx => tx.date && tx.date.substring(0, 7) === prevMonthKey && isEmergencyTx(tx));
+        const prevDeductions = prevTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+        const prevSubtotal = (prevMonthData.monthlySavings || 0) + 
+                             (prevMonthData.travelFund || 0) + 
+                             (prevMonthData.transportProfits || 0) + 
+                             (prevMonthData.currentAmount || 0);
+        carriedOverAmount = prevSubtotal - prevDeductions;
+      }
+    }
+
+    // Initialize the new month automatically with carried over balance
+    currentMonthData = {
+      monthlySavings: 0.000,
+      travelFund: 0.000,
+      transportProfits: 0.000,
+      asOfDate: defaultAsOfDate,
+      currentAmount: carriedOverAmount
+    };
+
+    bbkMonthlyData[selectedMonthStr] = currentMonthData;
+    localStorage.setItem('bbkMonthlyData', JSON.stringify(bbkMonthlyData));
+  }
+  // --- END AUTOMATIC CARRY-OVER LOGIC ---
 
   if (document.getElementById('bbkMonthlySavings')) document.getElementById('bbkMonthlySavings').value = (currentMonthData.monthlySavings || 0).toFixed(3);
   if (document.getElementById('bbkTravelFund')) document.getElementById('bbkTravelFund').value = (currentMonthData.travelFund || 0).toFixed(3);
@@ -483,26 +588,6 @@ function renderBBKTab() {
     const finalExactAmount = currentMonthData.exactAmountOverride !== undefined ? currentMonthData.exactAmountOverride : monthEndTotal;
     exactAmountInput.value = Number(finalExactAmount).toFixed(3);
   }
-}
-
-const celebForm = document.getElementById('celebrationForm');
-if (celebForm) {
-  celebForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const purpose = document.getElementById('celebPurpose').value.trim();
-    const date = document.getElementById('celebDate').value;
-
-    if (purpose && date) {
-      celebrations.push({
-        id: Date.now().toString(),
-        purpose: purpose.toUpperCase(),
-        date: date
-      });
-      localStorage.setItem('celebrations', JSON.stringify(celebrations));
-      document.getElementById('celebPurpose').value = '';
-      renderBBKTab();
-    }
-  });
 }
 
 function deleteCelebration(id) {

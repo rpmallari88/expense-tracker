@@ -85,3 +85,42 @@ button.submit-btn { background: #0070f3; color: white; font-weight: bold; border
 .bills-table td.dynamic-val { color: #059669; font-weight: bold; }
 .bills-table tr.total-row { background: #fef08a; font-weight: bold; font-size: 0.95rem; }
 .bills-table tr.extras-row { background: #cbd5e1; font-weight: bold; font-size: 0.95rem; }
+
+/* BBK Table Action Wrapper & Edit Buttons */
+.input-with-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.input-with-action input[readonly] {
+  background-color: #f8fafc;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+.btn-edit {
+  background-color: #0f172a;
+  color: #ffffff;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  width: auto;
+}
+
+.btn-edit:hover {
+  background-color: #1e293b;
+}
+
+.btn-edit.btn-saving {
+  background-color: #16a34a; /* Turns green when ready to Save */
+}
+
+.btn-edit.btn-saving:hover {
+  background-color: #15803d;
+}
