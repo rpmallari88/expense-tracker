@@ -414,73 +414,47 @@ async function renderBBKTab() {
 
   const defaultAsOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
 
-  // --- AUTOMATIC CARRY-OVER CALCULATION ---
+  // --- STRICT CARRY-OVER CALCULATION ---
   let calculatedCarryOver = 0.000;
 
-  // 1. Get all months strictly earlier than the active selection from local memory
-  let availableMonths = Object.keys(bbkMonthlyData).filter(m => m < selectedMonthStr).sort();
+  // Find the most recent month strictly before selectedMonthStr
+  const priorMonths = Object.keys(bbkMonthlyData).filter(m => m < selectedMonthStr).sort();
 
-  // 2. Fallback: If local memory doesn't contain a prior month, query Supabase directly
-  if (availableMonths.length === 0) {
-    const { data: prevDbData, error } = await supabaseClient
-      .from('bbk_monthly_data')
-      .select('*')
-      .lt('year_month', selectedMonthStr)
-      .order('year_month', { ascending: false })
-      .limit(1);
-
-    if (!error && prevDbData && prevDbData.length > 0) {
-      const row = prevDbData[0];
-      bbkMonthlyData[row.year_month] = {
-        monthlySavings: Number(row.monthly_savings) || 0,
-        travelFund: Number(row.travel_fund) || 0,
-        transportProfits: Number(row.transport_profits) || 0,
-        asOfDate: row.as_of_date,
-        currentAmount: Number(row.current_amount) || 0,
-        exactAmountOverride: row.exact_amount_override !== null && row.exact_amount_override !== undefined 
-          ? Number(row.exact_amount_override) 
-          : undefined
-      };
-      availableMonths = [row.year_month];
-    }
-  }
-
-  // 3. Compute carry-over balance from latest available prior month minus deductions
-  if (availableMonths.length > 0) {
-    const latestPrevKey = availableMonths[availableMonths.length - 1];
+  if (priorMonths.length > 0) {
+    const latestPrevKey = priorMonths[priorMonths.length - 1];
     const prevMonthData = bbkMonthlyData[latestPrevKey];
 
     if (prevMonthData) {
+      // Emergency expenses of the prior month
       const prevTxList = allTransactions.filter(tx => tx.date && tx.date.substring(0, 7) === latestPrevKey && isEmergencyTx(tx));
       const prevDeductions = prevTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
 
-      if (prevMonthData.exactAmountOverride !== undefined && prevMonthData.exactAmountOverride !== null) {
-        calculatedCarryOver = prevMonthData.exactAmountOverride;
-      } else {
-        const prevSubtotal = (prevMonthData.monthlySavings || 0) + 
-                             (prevMonthData.travelFund || 0) + 
-                             (prevMonthData.transportProfits || 0) + 
-                             (prevMonthData.currentAmount || 0);
-        calculatedCarryOver = prevSubtotal - prevDeductions;
-      }
+      // Carryover = Prior month subtotal minus prior month emergency deductions
+      const prevSubtotal = (prevMonthData.monthlySavings || 0) + 
+                           (prevMonthData.travelFund || 0) + 
+                           (prevMonthData.transportProfits || 0) + 
+                           (prevMonthData.currentAmount || 0);
+                           
+      calculatedCarryOver = prevSubtotal - prevDeductions;
     }
   }
 
-  let currentMonthData = bbkMonthlyData[selectedMonthStr];
-
-  if (!currentMonthData) {
-    currentMonthData = {
+  // Ensure current active month object exists and ALWAYS force dynamically computed carry-over
+  if (!bbkMonthlyData[selectedMonthStr]) {
+    bbkMonthlyData[selectedMonthStr] = {
       monthlySavings: 0.000,
       travelFund: 0.000,
       transportProfits: 0.000,
       asOfDate: defaultAsOfDate,
       currentAmount: calculatedCarryOver
     };
-    bbkMonthlyData[selectedMonthStr] = currentMonthData;
   } else {
-    currentMonthData.currentAmount = calculatedCarryOver;
+    // ALWAYS override stored currentAmount for the active month with calculated carry-over
+    bbkMonthlyData[selectedMonthStr].currentAmount = calculatedCarryOver;
   }
-  // --- END AUTOMATIC CARRY-OVER CALCULATION ---
+
+  const currentMonthData = bbkMonthlyData[selectedMonthStr];
+  // --- END STRICT CARRY-OVER CALCULATION ---
 
   if (document.getElementById('bbkMonthlySavings')) document.getElementById('bbkMonthlySavings').value = (currentMonthData.monthlySavings || 0).toFixed(3);
   if (document.getElementById('bbkTravelFund')) document.getElementById('bbkTravelFund').value = (currentMonthData.travelFund || 0).toFixed(3);
