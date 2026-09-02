@@ -32,24 +32,8 @@ let celebrations = JSON.parse(localStorage.getItem('celebrations')) || [
   { id: '6', date: '2026-07-21', purpose: "ANNA'S BIRTHDAY" }
 ];
 
-// Store BBK per-month values
-let bbkMonthlyData = JSON.parse(localStorage.getItem('bbkMonthlyData')) || {
-  "2026-06": {
-    monthlySavings: 100.000,
-    travelFund: 0.000,
-    transportProfits: 0.000,
-    asOfDate: "31-May-2026",
-    currentAmount: 282.609,
-    exactAmountOverride: 176.896
-  },
-  "2026-07": {
-    monthlySavings: 100.000,
-    travelFund: 0.000,
-    transportProfits: 72.000,
-    asOfDate: "30-Jun-2026",
-    currentAmount: 176.896
-  }
-};
+// BBK per-month object (populated dynamically from Supabase)
+let bbkMonthlyData = {};
 
 // Calculate dates FIRST
 const today = new Date();
@@ -72,11 +56,43 @@ async function checkAuthSession() {
     switchTab('dashboardTab', document.querySelector('.nav-tabs .tab-btn'));
     
     await fetchTransactions();
+    await fetchBBKMonthlyData();
     calculateBatelco();
   } else {
     loginModal.style.display = 'flex';
     appContainer.style.display = 'none';
   }
+}
+
+// Fetch BBK Data directly from Supabase
+async function fetchBBKMonthlyData() {
+  const { data, error } = await supabaseClient
+    .from('bbk_monthly_data')
+    .select('*');
+
+  if (error) {
+    console.error('Error fetching BBK monthly data:', error.message);
+    return;
+  }
+
+  bbkMonthlyData = {};
+  if (data) {
+    data.forEach(row => {
+      bbkMonthlyData[row.year_month] = {
+        monthlySavings: Number(row.monthly_savings) || 0,
+        travelFund: Number(row.travel_fund) || 0,
+        transportProfits: Number(row.transport_profits) || 0,
+        asOfDate: row.as_of_date,
+        currentAmount: Number(row.current_amount) || 0,
+        exactAmountOverride: row.exact_amount_override !== null && row.exact_amount_override !== undefined 
+          ? Number(row.exact_amount_override) 
+          : undefined
+      };
+    });
+  }
+
+  calculateSummaries();
+  renderBBKTab();
 }
 
 if (loginForm) {
@@ -314,71 +330,6 @@ function getNextMonthKey(yearMonthStr) {
   return `${nextYear}-${nextMonth}`;
 }
 
-function saveAndRenderBBKInputs() {
-  const selectedMonthStr = bbkMonthPicker ? bbkMonthPicker.value : currentYearMonth;
-  
-  const monthlySavings = parseFloat(document.getElementById('bbkMonthlySavings')?.value) || 0;
-  const travelFund = parseFloat(document.getElementById('bbkTravelFund')?.value) || 0;
-  const transportProfits = parseFloat(document.getElementById('bbkTransportProfits')?.value) || 0;
-  const currentAmount = parseFloat(document.getElementById('bbkCurrentAmount')?.value) || 0;
-  const asOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
-
-  const existingData = bbkMonthlyData[selectedMonthStr] || {};
-
-  bbkMonthlyData[selectedMonthStr] = {
-    ...existingData,
-    monthlySavings,
-    travelFund,
-    transportProfits,
-    asOfDate,
-    currentAmount
-  };
-
-  localStorage.setItem('bbkMonthlyData', JSON.stringify(bbkMonthlyData));
-
-  const emergencyTxList = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
-  const deductionsTotal = emergencyTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-
-  const subtotal = monthlySavings + travelFund + transportProfits + currentAmount;
-  const monthEndTotal = subtotal - deductionsTotal;
-
-  if (document.getElementById('bbkTotalDeductions')) document.getElementById('bbkTotalDeductions').innerText = deductionsTotal.toFixed(3);
-  if (document.getElementById('bbkSubtotal')) document.getElementById('bbkSubtotal').innerText = subtotal.toFixed(3);
-  if (document.getElementById('bbkMonthEndTotal')) document.getElementById('bbkMonthEndTotal').innerText = monthEndTotal.toFixed(3);
-
-  const exactAmountInput = document.getElementById('bbkExactAmount');
-  if (exactAmountInput && existingData.exactAmountOverride === undefined) {
-    exactAmountInput.value = monthEndTotal.toFixed(3);
-  }
-}
-
-function handleExactAmountEdit() {
-  const selectedMonthStr = bbkMonthPicker ? bbkMonthPicker.value : currentYearMonth;
-  const exactVal = parseFloat(document.getElementById('bbkExactAmount')?.value) || 0;
-
-  if (!bbkMonthlyData[selectedMonthStr]) {
-    bbkMonthlyData[selectedMonthStr] = {};
-  }
-  
-  bbkMonthlyData[selectedMonthStr].exactAmountOverride = exactVal;
-
-  const nextMonthKey = getNextMonthKey(selectedMonthStr);
-  if (!bbkMonthlyData[nextMonthKey]) {
-    bbkMonthlyData[nextMonthKey] = {
-      monthlySavings: 0.000,
-      travelFund: 0.000,
-      transportProfits: 0.000,
-      asOfDate: getFormattedPreviousMonthEnd(nextMonthKey),
-      currentAmount: exactVal
-    };
-  } else {
-    bbkMonthlyData[nextMonthKey].currentAmount = exactVal;
-  }
-
-  localStorage.setItem('bbkMonthlyData', JSON.stringify(bbkMonthlyData));
-  calculateSummaries();
-}
-
 function getPreviousMonthKey(yearMonthStr) {
   const [year, month] = yearMonthStr.split('-').map(Number);
   const prevDate = new Date(year, month - 2, 1);
@@ -387,7 +338,7 @@ function getPreviousMonthKey(yearMonthStr) {
   return `${prevYear}-${prevMonth}`;
 }
 
-function toggleBBKFieldEdit(inputId, btnId) {
+async function toggleBBKFieldEdit(inputId, btnId) {
   const inputElem = document.getElementById(inputId);
   const btnElem = document.getElementById(btnId);
   
@@ -421,7 +372,6 @@ function toggleBBKFieldEdit(inputId, btnId) {
 
     const newValue = parseFloat(inputElem.value) || 0;
 
-    // Map input IDs to bbkMonthlyData keys
     if (inputId === 'bbkMonthlySavings') {
       bbkMonthlyData[selectedMonthStr].monthlySavings = newValue;
     } else if (inputId === 'bbkTravelFund') {
@@ -430,26 +380,29 @@ function toggleBBKFieldEdit(inputId, btnId) {
       bbkMonthlyData[selectedMonthStr].transportProfits = newValue;
     } else if (inputId === 'bbkExactAmount') {
       bbkMonthlyData[selectedMonthStr].exactAmountOverride = newValue;
-      
-      // Update next month's starting currentAmount if exact amount changes
-      const nextMonthKey = getNextMonthKey(selectedMonthStr);
-      if (!bbkMonthlyData[nextMonthKey]) {
-        bbkMonthlyData[nextMonthKey] = {
-          monthlySavings: 0.000,
-          travelFund: 0.000,
-          transportProfits: 0.000,
-          asOfDate: getFormattedPreviousMonthEnd(nextMonthKey),
-          currentAmount: newValue
-        };
-      } else {
-        bbkMonthlyData[nextMonthKey].currentAmount = newValue;
-      }
     }
 
-    // Save to LocalStorage and update calculations
-    localStorage.setItem('bbkMonthlyData', JSON.stringify(bbkMonthlyData));
-    calculateSummaries();
-    renderBBKTab();
+    const mData = bbkMonthlyData[selectedMonthStr];
+
+    // Upsert directly to Supabase
+    const { error } = await supabaseClient
+      .from('bbk_monthly_data')
+      .upsert({
+        year_month: selectedMonthStr,
+        monthly_savings: mData.monthlySavings,
+        travel_fund: mData.travelFund,
+        transport_profits: mData.transportProfits,
+        as_of_date: mData.asOfDate || getFormattedPreviousMonthEnd(selectedMonthStr),
+        current_amount: mData.currentAmount,
+        exact_amount_override: mData.exactAmountOverride !== undefined ? mData.exactAmountOverride : null,
+        updated_at: new Date().toISOString()
+      });
+
+    if (error) {
+      alert("Error saving to database: " + error.message);
+    } else {
+      await fetchBBKMonthlyData();
+    }
   }
 }
 
@@ -475,7 +428,6 @@ function renderBBKTab() {
     if (prevMonthData.exactAmountOverride !== undefined && prevMonthData.exactAmountOverride !== null) {
       calculatedCarryOver = prevMonthData.exactAmountOverride;
     } else {
-      // Calculate previous month's ending total dynamically
       const prevTxList = allTransactions.filter(tx => tx.date && tx.date.substring(0, 7) === prevMonthKey && isEmergencyTx(tx));
       const prevDeductions = prevTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
       const prevSubtotal = (prevMonthData.monthlySavings || 0) + 
@@ -489,7 +441,6 @@ function renderBBKTab() {
   let currentMonthData = bbkMonthlyData[selectedMonthStr];
 
   if (!currentMonthData) {
-    // Initialize new month dynamically
     currentMonthData = {
       monthlySavings: 0.000,
       travelFund: 0.000,
@@ -498,13 +449,8 @@ function renderBBKTab() {
       currentAmount: calculatedCarryOver
     };
     bbkMonthlyData[selectedMonthStr] = currentMonthData;
-    localStorage.setItem('bbkMonthlyData', JSON.stringify(bbkMonthlyData));
-  } else {
-    // Update existing unedited currentAmount with carried-over balance if previous month updated
-    if (calculatedCarryOver !== 0 && (!currentMonthData.currentAmount || currentMonthData.currentAmount === 0)) {
-      currentMonthData.currentAmount = calculatedCarryOver;
-      localStorage.setItem('bbkMonthlyData', JSON.stringify(bbkMonthlyData));
-    }
+  } else if (calculatedCarryOver !== 0 && (!currentMonthData.currentAmount || currentMonthData.currentAmount === 0)) {
+    currentMonthData.currentAmount = calculatedCarryOver;
   }
   // --- END AUTOMATIC CARRY-OVER LOGIC ---
 
