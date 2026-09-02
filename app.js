@@ -420,7 +420,7 @@ async function renderBBKTab() {
   // 1. Get all months strictly earlier than the active selection from local memory
   let availableMonths = Object.keys(bbkMonthlyData).filter(m => m < selectedMonthStr).sort();
 
-  // 2. Fallback: If local memory doesn't contain a prior month, query Supabase directly for the latest prior month record
+  // 2. Fallback: If local memory doesn't contain a prior month, query Supabase directly
   if (availableMonths.length === 0) {
     const { data: prevDbData, error } = await supabaseClient
       .from('bbk_monthly_data')
@@ -445,17 +445,18 @@ async function renderBBKTab() {
     }
   }
 
-  // 3. Compute carry-over balance from latest available prior month
+  // 3. Compute carry-over balance from latest available prior month minus deductions
   if (availableMonths.length > 0) {
     const latestPrevKey = availableMonths[availableMonths.length - 1];
     const prevMonthData = bbkMonthlyData[latestPrevKey];
 
     if (prevMonthData) {
+      const prevTxList = allTransactions.filter(tx => tx.date && tx.date.substring(0, 7) === latestPrevKey && isEmergencyTx(tx));
+      const prevDeductions = prevTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+
       if (prevMonthData.exactAmountOverride !== undefined && prevMonthData.exactAmountOverride !== null) {
         calculatedCarryOver = prevMonthData.exactAmountOverride;
       } else {
-        const prevTxList = allTransactions.filter(tx => tx.date && tx.date.substring(0, 7) === latestPrevKey && isEmergencyTx(tx));
-        const prevDeductions = prevTxList.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
         const prevSubtotal = (prevMonthData.monthlySavings || 0) + 
                              (prevMonthData.travelFund || 0) + 
                              (prevMonthData.transportProfits || 0) + 
@@ -476,7 +477,7 @@ async function renderBBKTab() {
       currentAmount: calculatedCarryOver
     };
     bbkMonthlyData[selectedMonthStr] = currentMonthData;
-  } else if (!currentMonthData.currentAmount || currentMonthData.currentAmount === 0) {
+  } else {
     currentMonthData.currentAmount = calculatedCarryOver;
   }
   // --- END AUTOMATIC CARRY-OVER CALCULATION ---
