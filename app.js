@@ -53,12 +53,15 @@ async function checkAuthSession() {
     loginModal.style.display = 'none';
     appContainer.style.display = 'block';
     
-    // Fetch all remote data first
+    // 1. Fetch raw transactions and BBK data
     await fetchTransactions();
-    await fetchBBKMonthlyData(); // Populates bbkMonthlyData state
+    await fetchBBKMonthlyData();
 
-    // Force sync and run calculations across all tabs AFTER data loads
+    // 2. Filter transactions for active month FIRST
     syncAndApplyFilters(currentYearMonth);
+    
+    // 3. Force BBK tab to evaluate carry-over with populated state
+    renderBBKTab();
     calculateBatelco();
 
     switchTab('dashboardTab', document.querySelector('.nav-tabs .tab-btn'));
@@ -253,7 +256,7 @@ function calculateSummaries() {
   const availableExpenseBudget = 590.000;
   const totalSavings = availableExpenseBudget - actualNonSavingsExpenses;
 
-  // Retrieve current BBK Exact Amount dynamically
+  // Retrieve current BBK Exact Amount
   const selectedMonthStr = monthPicker ? monthPicker.value : currentYearMonth;
   const currentMonthData = bbkMonthlyData[selectedMonthStr] || {};
   const emergencyTxList = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
@@ -329,14 +332,6 @@ function getFormattedPreviousMonthEnd(yearMonthStr) {
   const day = String(date.getDate()).padStart(2, '0');
   const monthName = date.toLocaleString('default', { month: 'short' });
   return `${day}-${monthName}-${date.getFullYear()}`;
-}
-
-function getPreviousMonthKey(yearMonthStr) {
-  const [year, month] = yearMonthStr.split('-').map(Number);
-  const prevDate = new Date(year, month - 2, 1);
-  const prevYear = prevDate.getFullYear();
-  const prevMonth = String(prevDate.getMonth() + 1).padStart(2, '0');
-  return `${prevYear}-${prevMonth}`;
 }
 
 async function toggleBBKFieldEdit(inputId, btnId) {
@@ -419,8 +414,7 @@ function renderBBKTab() {
 
   const defaultAsOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
 
-  // --- REVISED AUTOMATIC CARRY-OVER LOGIC ---
-  // Find the most recent month recorded in bbkMonthlyData prior to current month
+  // --- AUTOMATIC CARRY-OVER CALCULATION ---
   const availableMonths = Object.keys(bbkMonthlyData).filter(m => m < selectedMonthStr).sort();
   let calculatedCarryOver = 0.000;
 
@@ -454,13 +448,10 @@ function renderBBKTab() {
       currentAmount: calculatedCarryOver
     };
     bbkMonthlyData[selectedMonthStr] = currentMonthData;
-  } else {
-    // If current amount is unassigned or 0 but we have calculated carryover, update it
-    if (calculatedCarryOver !== 0 && (!currentMonthData.currentAmount || currentMonthData.currentAmount === 0)) {
-      currentMonthData.currentAmount = calculatedCarryOver;
-    }
+  } else if (!currentMonthData.currentAmount || currentMonthData.currentAmount === 0) {
+    currentMonthData.currentAmount = calculatedCarryOver;
   }
-  // --- END AUTOMATIC CARRY-OVER LOGIC ---
+  // --- END AUTOMATIC CARRY-OVER CALCULATION ---
 
   if (document.getElementById('bbkMonthlySavings')) document.getElementById('bbkMonthlySavings').value = (currentMonthData.monthlySavings || 0).toFixed(3);
   if (document.getElementById('bbkTravelFund')) document.getElementById('bbkTravelFund').value = (currentMonthData.travelFund || 0).toFixed(3);
