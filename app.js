@@ -53,11 +53,15 @@ async function checkAuthSession() {
     loginModal.style.display = 'none';
     appContainer.style.display = 'block';
     
-    switchTab('dashboardTab', document.querySelector('.nav-tabs .tab-btn'));
-    
+    // Fetch data first
     await fetchTransactions();
     await fetchBBKMonthlyData();
+
+    // Ensure state and summaries are fully rendered on initial load
+    applyFilters();
     calculateBatelco();
+
+    switchTab('dashboardTab', document.querySelector('.nav-tabs .tab-btn'));
   } else {
     loginModal.style.display = 'flex';
     appContainer.style.display = 'none';
@@ -91,8 +95,9 @@ async function fetchBBKMonthlyData() {
     });
   }
 
-  calculateSummaries();
+  // Render BBK tab state first so carry-overs are calculated, then compute dashboard summaries
   renderBBKTab();
+  calculateSummaries();
 }
 
 if (loginForm) {
@@ -190,9 +195,9 @@ function applyFilters() {
     return tx.date.substring(0, 7) === selectedMonth;
   });
 
+  renderBBKTab();
   calculateSummaries();
   renderTransactions();
-  renderBBKTab();
   updateReportSummary();
 }
 
