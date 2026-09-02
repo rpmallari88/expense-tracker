@@ -61,7 +61,7 @@ async function checkAuthSession() {
     syncAndApplyFilters(currentYearMonth);
     
     // 3. Force BBK tab to evaluate carry-over with populated state
-    renderBBKTab();
+    await renderBBKTab();
     calculateBatelco();
 
     switchTab('dashboardTab', document.querySelector('.nav-tabs .tab-btn'));
@@ -98,7 +98,7 @@ async function fetchBBKMonthlyData() {
     });
   }
 
-  renderBBKTab();
+  await renderBBKTab();
   calculateSummaries();
 }
 
@@ -402,7 +402,7 @@ async function toggleBBKFieldEdit(inputId, btnId) {
   }
 }
 
-function renderBBKTab() {
+async function renderBBKTab() {
   const selectedMonthStr = bbkMonthPicker && bbkMonthPicker.value ? bbkMonthPicker.value : (monthPicker ? monthPicker.value : currentYearMonth);
   const [selectedYear, selectedMonth] = selectedMonthStr.split('-');
   
@@ -415,9 +415,37 @@ function renderBBKTab() {
   const defaultAsOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
 
   // --- AUTOMATIC CARRY-OVER CALCULATION ---
-  const availableMonths = Object.keys(bbkMonthlyData).filter(m => m < selectedMonthStr).sort();
   let calculatedCarryOver = 0.000;
 
+  // 1. Get all months strictly earlier than the active selection from local memory
+  let availableMonths = Object.keys(bbkMonthlyData).filter(m => m < selectedMonthStr).sort();
+
+  // 2. Fallback: If local memory doesn't contain a prior month, query Supabase directly for the latest prior month record
+  if (availableMonths.length === 0) {
+    const { data: prevDbData, error } = await supabaseClient
+      .from('bbk_monthly_data')
+      .select('*')
+      .lt('year_month', selectedMonthStr)
+      .order('year_month', { ascending: false })
+      .limit(1);
+
+    if (!error && prevDbData && prevDbData.length > 0) {
+      const row = prevDbData[0];
+      bbkMonthlyData[row.year_month] = {
+        monthlySavings: Number(row.monthly_savings) || 0,
+        travelFund: Number(row.travel_fund) || 0,
+        transportProfits: Number(row.transport_profits) || 0,
+        asOfDate: row.as_of_date,
+        currentAmount: Number(row.current_amount) || 0,
+        exactAmountOverride: row.exact_amount_override !== null && row.exact_amount_override !== undefined 
+          ? Number(row.exact_amount_override) 
+          : undefined
+      };
+      availableMonths = [row.year_month];
+    }
+  }
+
+  // 3. Compute carry-over balance from latest available prior month
   if (availableMonths.length > 0) {
     const latestPrevKey = availableMonths[availableMonths.length - 1];
     const prevMonthData = bbkMonthlyData[latestPrevKey];
