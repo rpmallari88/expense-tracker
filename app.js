@@ -55,9 +55,9 @@ async function checkAuthSession() {
     
     // Fetch all remote data first
     await fetchTransactions();
-    await fetchBBKMonthlyData();
+    await fetchBBKMonthlyData(); // Populates bbkMonthlyData state
 
-    // Force sync and run calculations across all tabs
+    // Force sync and run calculations across all tabs AFTER data loads
     syncAndApplyFilters(currentYearMonth);
     calculateBatelco();
 
