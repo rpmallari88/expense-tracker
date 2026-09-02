@@ -279,23 +279,29 @@ function calculateSummaries() {
   if (document.getElementById('billExtras')) document.getElementById('billExtras').innerText = totalSavings.toFixed(3);
 }
 
+// iOS Safe Element Value Extractor
+function getElementValue(id) {
+  const el = document.getElementById(id);
+  return el ? parseFloat(el.value) || 0 : 0;
+}
+
 function getBatelcoSendToJoyVal() {
-  const share = parseFloat(document.getElementById('bShare')?.value) || 0;
-  const installment = parseFloat(document.getElementById('bInstallment')?.value) || 0;
-  const dolp = parseFloat(document.getElementById('bDolp')?.value) || 0;
-  const monse = parseFloat(document.getElementById('bMonse')?.value) || 0;
-  const offset = parseFloat(document.getElementById('bOffset')?.value) || 0;
+  const share = getElementValue('bShare');
+  const installment = getElementValue('bInstallment');
+  const dolp = getElementValue('bDolp');
+  const monse = getElementValue('bMonse');
+  const offset = getElementValue('bOffset');
 
   const total = share + installment + dolp + monse;
   return total - offset;
 }
 
 function calculateBatelco() {
-  const share = parseFloat(document.getElementById('bShare')?.value) || 0;
-  const installment = parseFloat(document.getElementById('bInstallment')?.value) || 0;
-  const dolp = parseFloat(document.getElementById('bDolp')?.value) || 0;
-  const monse = parseFloat(document.getElementById('bMonse')?.value) || 0;
-  const offset = parseFloat(document.getElementById('bOffset')?.value) || 0;
+  const share = getElementValue('bShare');
+  const installment = getElementValue('bInstallment');
+  const dolp = getElementValue('bDolp');
+  const monse = getElementValue('bMonse');
+  const offset = getElementValue('bOffset');
 
   const fixedPayable = share + installment;
   const subTotal = dolp + monse;
@@ -791,6 +797,28 @@ function exportToPDF() {
   });
 
   doc.save(`Expense_Report_${selectedMonth}.pdf`);
+}
+
+// Celebration Form Submission Listener
+const celebrationForm = document.getElementById('celebrationForm');
+if (celebrationForm) {
+  celebrationForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const purpose = document.getElementById('celebPurpose').value.trim();
+    const date = document.getElementById('celebDate').value;
+
+    if (!purpose || !date) return;
+
+    celebrations.push({
+      id: Date.now().toString(),
+      date: date,
+      purpose: purpose.toUpperCase()
+    });
+
+    localStorage.setItem('celebrations', JSON.stringify(celebrations));
+    celebrationForm.reset();
+    renderBBKTab();
+  });
 }
 
 checkAuthSession();
