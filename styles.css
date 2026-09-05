@@ -31,6 +31,10 @@ h1 { text-align: center; margin-bottom: 15px; font-size: 1.5rem; }
 .card-savings .card-title { color: #274e13; }
 .card-savings .card-value { color: #389e0d; }
 
+.card-cash { background: #f0fdf4; border-color: #86efac; }
+.card-cash .card-title { color: #166534; }
+.card-cash .card-value { color: #15803d; }
+
 .form-group { margin-bottom: 12px; }
 .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 12px 0; background: #fff1f0; padding: 8px 12px; border-radius: 6px; border: 1px solid #ffa39e; }
 .checkbox-group input { width: auto; margin: 0; cursor: pointer; }

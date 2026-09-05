@@ -91,7 +91,6 @@ async function fetchBBKMonthlyData() {
     });
   }
 
-  // Ensure Base Seed for August 2026 is strictly enforced if uninitialized or 0
   if (!bbkMonthlyData["2026-08"] || bbkMonthlyData["2026-08"].currentAmount === 0) {
     bbkMonthlyData["2026-08"] = {
       monthlySavings: bbkMonthlyData["2026-08"]?.monthlySavings || 0,
@@ -218,7 +217,9 @@ function calculateSummaries() {
   let emergencyTotal = 0;
   let gasTotal = 0;
   let groceryCC = 0;
-  let groceryCash = 0;
+  let cashSpentTotal = 0;
+  let withdrawTotal = 0;
+  let benefitPayTotal = 0;
 
   monthFilteredTransactions.forEach(tx => {
     const amt = Number(tx.amount) || 0;
@@ -228,24 +229,40 @@ function calculateSummaries() {
     const isEmergency = isEmergencyTx(tx);
     const isGas = desc.includes('gas') || desc.includes('bapco');
 
+    if (isEmergency) {
+      emergencyTotal += amt;
+    }
+
     if (method === 'Credit Card') {
       ccTotal += amt;
 
-      if (isEmergency) {
-        emergencyTotal += amt;
-      } else if (isGas) {
-        gasTotal += amt;
-      } else {
-        groceryCC += amt;
+      if (!isEmergency) {
+        if (isGas) {
+          gasTotal += amt;
+        } else {
+          groceryCC += amt;
+        }
       }
-    } else {
-      if (isEmergency) {
-        emergencyTotal += amt;
-      } else {
-        groceryCash += amt;
+    } else if (method === 'Withdraw') {
+      if (!isEmergency) {
+        withdrawTotal += amt;
+      }
+    } else if (method === 'BenefitPay') {
+      if (!isEmergency) {
+        benefitPayTotal += amt;
+      }
+    } else if (method === 'Cash') {
+      if (!isEmergency) {
+        cashSpentTotal += amt;
       }
     }
   });
+
+  // CASH ON HAND = Total Withdrawals - Cash payments made
+  const cashOnHand = withdrawTotal - cashSpentTotal;
+
+  // Combined Total for BenefitPay and Withdraw before Cash deductions
+  const benefitPayAndWithdraw = benefitPayTotal + withdrawTotal;
 
   const batelcoAmount = getBatelcoSendToJoyVal();
 
@@ -256,8 +273,8 @@ function calculateSummaries() {
   const hsbc = 100.000;
   const bbk = 100.000;
 
-  const monthlyTotal = rent + groceryCC + groceryCash + batelcoAmount + carLoan + gasTotal + carCleaning + coop + hsbc + bbk;
-  const actualNonSavingsExpenses = rent + groceryCC + groceryCash + batelcoAmount + carLoan + gasTotal + carCleaning;
+  const monthlyTotal = rent + groceryCC + benefitPayAndWithdraw + batelcoAmount + carLoan + gasTotal + carCleaning + coop + hsbc + bbk;
+  const actualNonSavingsExpenses = rent + groceryCC + benefitPayAndWithdraw + batelcoAmount + carLoan + gasTotal + carCleaning;
   const availableExpenseBudget = 590.000;
   const totalSavings = availableExpenseBudget - actualNonSavingsExpenses;
 
@@ -278,10 +295,19 @@ function calculateSummaries() {
   if (document.getElementById('kpiEmergency')) document.getElementById('kpiEmergency').innerText = `BHD ${emergencyTotal.toFixed(3)}`;
   if (document.getElementById('kpiGas')) document.getElementById('kpiGas').innerText = `BHD ${gasTotal.toFixed(3)}`;
   if (document.getElementById('kpiGroceryCC')) document.getElementById('kpiGroceryCC').innerText = `BHD ${groceryCC.toFixed(3)}`;
-  if (document.getElementById('kpiGroceryCash')) document.getElementById('kpiGroceryCash').innerText = `BHD ${groceryCash.toFixed(3)}`;
+  
+  // Dashboard card now displays total BenefitPay + Withdraw before cash deductions
+  if (document.getElementById('kpiGroceryCash')) {
+    document.getElementById('kpiGroceryCash').innerText = `BHD ${benefitPayAndWithdraw.toFixed(3)}`;
+  }
+  
+  if (document.getElementById('kpiCashOnHand')) {
+    document.getElementById('kpiCashOnHand').innerText = `BHD ${cashOnHand.toFixed(3)}`;
+  }
 
+  // KFH Tab Bills Breakdown
   if (document.getElementById('billGroceryCC')) document.getElementById('billGroceryCC').innerText = groceryCC.toFixed(3);
-  if (document.getElementById('billGroceryCash')) document.getElementById('billGroceryCash').innerText = groceryCash.toFixed(3);
+  if (document.getElementById('billGroceryCash')) document.getElementById('billGroceryCash').innerText = benefitPayAndWithdraw.toFixed(3);
   if (document.getElementById('billBatelco')) document.getElementById('billBatelco').innerText = batelcoAmount.toFixed(3);
   if (document.getElementById('billGas')) document.getElementById('billGas').innerText = gasTotal.toFixed(3);
   if (document.getElementById('billMonthlyTotal')) document.getElementById('billMonthlyTotal').innerText = monthlyTotal.toFixed(3);
@@ -415,7 +441,6 @@ async function renderBBKTab() {
 
   const defaultAsOfDate = getFormattedPreviousMonthEnd(selectedMonthStr);
 
-  // Dynamically generate all months from base August 2026 up to the selected month
   const chronologicalMonths = [];
   let currY = 2026;
   let currM = 8;
@@ -431,7 +456,6 @@ async function renderBBKTab() {
     }
   }
 
-  // Ensure base August value is set
   if (!bbkMonthlyData["2026-08"]) {
     bbkMonthlyData["2026-08"] = {
       monthlySavings: 0,
@@ -444,7 +468,6 @@ async function renderBBKTab() {
     bbkMonthlyData["2026-08"].currentAmount = 133.145;
   }
 
-  // Sequentially calculate carry-overs
   for (let i = 0; i < chronologicalMonths.length; i++) {
     const mKey = chronologicalMonths[i];
 
@@ -470,7 +493,6 @@ async function renderBBKTab() {
                            (prevData.transportProfits || 0) + 
                            (prevData.currentAmount || 0);
 
-      // Prior month end net balance carries over into current month's starting currentAmount
       bbkMonthlyData[mKey].currentAmount = prevSubtotal - prevDeductions;
     }
   }
@@ -815,7 +837,6 @@ function exportToPDF() {
   doc.autoTable({
     startY: 35,
     head: [['Date', 'Description', 'Amount', 'Method', 'Type']],
-    body: tableRows,
     headStyles: { fillColor: [0, 82, 204] },
     alternateRowStyles: { fillColor: [245, 247, 250] }
   });

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Monthly Expense Tracker & Bills Checklist</title>
-  <link rel="stylesheet" href="styles.css?v=1.1">
+  <link rel="stylesheet" href="styles.css?v=1.2">
   
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -79,6 +79,10 @@
         <div class="card-title">CC TO PAY</div>
         <div class="card-value" id="kpiCC">BHD 0.000</div>
       </div>
+      <div class="card card-cash">
+        <div class="card-title">💵 CASH ON HAND</div>
+        <div class="card-value" id="kpiCashOnHand">BHD 0.000</div>
+      </div>
       <div class="card">
         <div class="card-title">EMERGENCY (BBK TO KFH)</div>
         <div class="card-value" id="kpiEmergency">BHD 0.000</div>
@@ -92,7 +96,7 @@
         <div class="card-value" id="kpiGroceryCC">BHD 0.000</div>
       </div>
       <div class="card">
-        <div class="card-title">TOTAL GROCERY (CASH)</div>
+        <div class="card-title">TOTAL GROCERY (BENEFITPAY / WITHDRAW)</div>
         <div class="card-value" id="kpiGroceryCash">BHD 0.000</div>
       </div>
     </div>
@@ -202,7 +206,7 @@
             <td style="text-align:right;" class="dynamic-val" id="billGroceryCC">0.000</td>
           </tr>
           <tr>
-            <td>Cash, Benefitpay</td>
+            <td>Grocery (BenefitPay / Withdraw)</td>
             <td style="text-align:right;" class="dynamic-val" id="billGroceryCash">0.000</td>
           </tr>
           <tr>
@@ -509,6 +513,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2.2"></script>
+<script src="app.js?v=2.4"></script>
 </body>
 </html>
