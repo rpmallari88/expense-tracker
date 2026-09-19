@@ -122,7 +122,7 @@ button.submit-btn { background: #0070f3; color: white; font-weight: bold; border
 }
 
 .btn-edit.btn-saving {
-  background-color: #16a34a; /* Turns green when ready to Save */
+  background-color: #16a34a;
 }
 
 .btn-edit.btn-saving:hover {

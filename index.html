@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Monthly Expense Tracker & Bills Checklist</title>
-  <link rel="stylesheet" href="styles.css?v=1.2">
+  <link rel="stylesheet" href="styles.css">
   
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -147,6 +147,7 @@
           <select id="filterMethod" onchange="renderTransactions()" style="padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc;">
             <option value="ALL">All Methods</option>
             <option value="EMERGENCY">🚨 Emergency Only</option>
+            <option value="GAS">⛽ Gas Only</option>
             <option value="Credit Card">Credit Card</option>
             <option value="BenefitPay">BenefitPay</option>
             <option value="Cash">Cash</option>
@@ -212,8 +213,8 @@
           <tr>
             <td>Household</td>
             <td>Batelco (+remaining div 3)</td>
-            <td style="text-align:right;">38.000</td>
-            <td style="text-align:right;" class="dynamic-val" id="billBatelco">37.667</td>
+            <td style="text-align:right;">12.556</td>
+            <td style="text-align:right;" class="dynamic-val" id="billBatelco">12.556</td>
           </tr>
 
           <tr class="category-header"><td colspan="4">LOAN</td></tr>
@@ -260,12 +261,12 @@
 
           <tr class="total-row">
             <td colspan="2">TOTAL EXPENSES</td>
-            <td style="text-align:right;">815.000</td>
+            <td style="text-align:right;">789.556</td>
             <td style="text-align:right;" id="billMonthlyTotal">0.000</td>
           </tr>
           <tr class="extras-row">
             <td colspan="2">TOTAL SAVINGS</td>
-            <td style="text-align:right;">6.000</td>
+            <td style="text-align:right;">31.444</td>
             <td style="text-align:right;" id="billExtras">0.000</td>
           </tr>
         </tbody>
@@ -285,7 +286,8 @@
       <form id="celebrationForm" style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
         <input type="text" id="celebPurpose" placeholder="e.g. ALICIA'S BIRTHDAY" required style="flex:2; min-width: 150px;">
         <input type="date" id="celebDate" required style="flex:1; min-width: 130px;">
-        <button type="submit" class="submit-btn" style="margin:0; width:auto; padding: 8px 16px;">Add Event</button>
+        <button type="submit" class="submit-btn" id="celebSubmitBtn" style="margin:0; width:auto; padding: 8px 16px;">Add Event</button>
+        <button type="button" class="cancel-btn" id="celebCancelBtn" onclick="cancelEditCelebration()" style="display: none; width: auto; margin:0; padding: 8px 16px;">Cancel</button>
       </form>
       
       <div id="celebrationsListContainer"></div>
@@ -513,6 +515,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2.4"></script>
+<script src="app.js"></script>
 </body>
 </html>

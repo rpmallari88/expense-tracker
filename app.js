@@ -32,6 +32,8 @@ let celebrations = JSON.parse(localStorage.getItem('celebrations')) || [
   { id: '6', date: '2026-07-21', purpose: "ANNA'S BIRTHDAY" }
 ];
 
+let editingCelebrationId = null;
+
 // BBK per-month object
 let bbkMonthlyData = {};
 
@@ -258,13 +260,9 @@ function calculateSummaries() {
     }
   });
 
-  // CASH ON HAND = Total Withdrawals - Cash payments made
   const cashOnHand = withdrawTotal - cashSpentTotal;
-
-  // Combined Total for BenefitPay and Withdraw before Cash deductions
   const benefitPayAndWithdraw = benefitPayTotal + withdrawTotal;
-
-  const batelcoAmount = getBatelcoSendToJoyVal();
+  const batelcoAmount = getBatelcoSendToJoyVal() || 12.556;
 
   const rent = 280.000;
   const carLoan = 123.000;
@@ -296,7 +294,6 @@ function calculateSummaries() {
   if (document.getElementById('kpiGas')) document.getElementById('kpiGas').innerText = `BHD ${gasTotal.toFixed(3)}`;
   if (document.getElementById('kpiGroceryCC')) document.getElementById('kpiGroceryCC').innerText = `BHD ${groceryCC.toFixed(3)}`;
   
-  // Dashboard card now displays total BenefitPay + Withdraw before cash deductions
   if (document.getElementById('kpiGroceryCash')) {
     document.getElementById('kpiGroceryCash').innerText = `BHD ${benefitPayAndWithdraw.toFixed(3)}`;
   }
@@ -305,7 +302,6 @@ function calculateSummaries() {
     document.getElementById('kpiCashOnHand').innerText = `BHD ${cashOnHand.toFixed(3)}`;
   }
 
-  // KFH Tab Bills Breakdown
   if (document.getElementById('billGroceryCC')) document.getElementById('billGroceryCC').innerText = groceryCC.toFixed(3);
   if (document.getElementById('billGroceryCash')) document.getElementById('billGroceryCash').innerText = benefitPayAndWithdraw.toFixed(3);
   if (document.getElementById('billBatelco')) document.getElementById('billBatelco').innerText = batelcoAmount.toFixed(3);
@@ -327,7 +323,8 @@ function getBatelcoSendToJoyVal() {
   const offset = getElementValue('bOffset');
 
   const total = share + installment + dolp + monse;
-  return total - offset;
+  const divBy3 = total / 3;
+  return divBy3 - offset;
 }
 
 function calculateBatelco() {
@@ -342,7 +339,7 @@ function calculateBatelco() {
   const total = fixedPayable + subTotal;
   const divBy3 = total / 3;
   const offsetTotal = offset;
-  const sendToJoy = total - offsetTotal;
+  const sendToJoy = divBy3 - offsetTotal;
 
   if (document.getElementById('bFixedPayable')) document.getElementById('bFixedPayable').innerText = `BHD ${fixedPayable.toFixed(3)}`;
   if (document.getElementById('bSubTotal')) document.getElementById('bSubTotal').innerText = `BHD ${subTotal.toFixed(3)}`;
@@ -528,7 +525,7 @@ async function renderBBKTab() {
       celebContainer.innerHTML = `<p style="color: #888; font-size: 0.9rem;">No recurring celebrations recorded for ${monthName}.</p>`;
     } else {
       celebContainer.innerHTML = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">
           ${monthCelebs.map(c => {
             const dayNum = parseInt(c.date.split('-').pop(), 10);
             const dateDisplay = `${dayNum}-${dateObj.toLocaleString('default', { month: 'short' })}`;
@@ -538,7 +535,10 @@ async function renderBBKTab() {
                   <strong style="display:block; font-size:0.85rem;">${c.purpose}</strong>
                   <span style="font-size:0.75rem; color:#64748b;">${dateDisplay}</span>
                 </div>
-                <button onclick="deleteCelebration('${c.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold;">✕</button>
+                <div style="display:flex; gap:6px; align-items:center;">
+                  <button onclick="editCelebration('${c.id}')" style="background:none; border:none; color:#faad14; cursor:pointer; font-weight:bold; font-size:0.85rem;" title="Edit Event">✏️</button>
+                  <button onclick="deleteCelebration('${c.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold; font-size:0.85rem;" title="Delete Event">✕</button>
+                </div>
               </div>
             `;
           }).join('')}
@@ -591,7 +591,35 @@ async function renderBBKTab() {
   }
 }
 
+function editCelebration(id) {
+  const celeb = celebrations.find(c => c.id === id);
+  if (!celeb) return;
+
+  editingCelebrationId = id;
+  document.getElementById('celebPurpose').value = celeb.purpose;
+  document.getElementById('celebDate').value = celeb.date;
+
+  const btn = document.getElementById('celebSubmitBtn');
+  const cancelBtn = document.getElementById('celebCancelBtn');
+  if (btn) btn.innerText = "Update Event";
+  if (cancelBtn) cancelBtn.style.display = "inline-block";
+}
+
+function cancelEditCelebration() {
+  editingCelebrationId = null;
+  const form = document.getElementById('celebrationForm');
+  if (form) form.reset();
+
+  const btn = document.getElementById('celebSubmitBtn');
+  const cancelBtn = document.getElementById('celebCancelBtn');
+  if (btn) btn.innerText = "Add Event";
+  if (cancelBtn) cancelBtn.style.display = "none";
+}
+
 function deleteCelebration(id) {
+  if (editingCelebrationId === id) {
+    cancelEditCelebration();
+  }
   celebrations = celebrations.filter(c => c.id !== id);
   localStorage.setItem('celebrations', JSON.stringify(celebrations));
   renderBBKTab();
@@ -609,6 +637,11 @@ function renderTransactions() {
   let list = monthFilteredTransactions;
   if (filterMethod === 'EMERGENCY') {
     list = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
+  } else if (filterMethod === 'GAS') {
+    list = monthFilteredTransactions.filter(tx => {
+      const desc = (tx.description || '').toLowerCase();
+      return desc.includes('gas') || desc.includes('petrol');
+    });
   } else if (filterMethod !== 'ALL') {
     list = monthFilteredTransactions.filter(tx => tx.payment_method === filterMethod);
   }
@@ -853,14 +886,24 @@ if (celebrationForm) {
 
     if (!purpose || !date) return;
 
-    celebrations.push({
-      id: Date.now().toString(),
-      date: date,
-      purpose: purpose.toUpperCase()
-    });
+    if (editingCelebrationId) {
+      celebrations = celebrations.map(c => {
+        if (c.id === editingCelebrationId) {
+          return { ...c, purpose: purpose.toUpperCase(), date: date };
+        }
+        return c;
+      });
+      cancelEditCelebration();
+    } else {
+      celebrations.push({
+        id: Date.now().toString(),
+        date: date,
+        purpose: purpose.toUpperCase()
+      });
+      celebrationForm.reset();
+    }
 
     localStorage.setItem('celebrations', JSON.stringify(celebrations));
-    celebrationForm.reset();
     renderBBKTab();
   });
 }
