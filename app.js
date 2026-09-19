@@ -23,15 +23,7 @@ let allTransactions = [];
 let monthFilteredTransactions = [];
 
 // Store Celebrations
-let celebrations = JSON.parse(localStorage.getItem('celebrations')) || [
-  { id: '1', date: '2026-07-12', purpose: "ALICIA'S BIRTHDAY" },
-  { id: '2', date: '2026-07-16', purpose: "PAPA'S BIRTHDAY" },
-  { id: '3', date: '2026-07-17', purpose: "KARMELLE'S BIRTHDAY" },
-  { id: '4', date: '2026-07-17', purpose: "VANIE'S BIRTHDAY" },
-  { id: '5', date: '2026-07-19', purpose: "JARED'S 14TH BIRTHDAY" },
-  { id: '6', date: '2026-07-21', purpose: "ANNA'S BIRTHDAY" }
-];
-
+let celebrations = [];
 let editingCelebrationId = null;
 
 // BBK per-month object
@@ -55,6 +47,7 @@ async function checkAuthSession() {
     
     await fetchTransactions();
     await fetchBBKMonthlyData();
+    await fetchCelebrations();
 
     syncAndApplyFilters(currentYearMonth);
     await renderBBKTab();
@@ -106,6 +99,19 @@ async function fetchBBKMonthlyData() {
 
   await renderBBKTab();
   calculateSummaries();
+}
+
+async function fetchCelebrations() {
+  const { data, error } = await supabaseClient
+    .from('celebrations')
+    .select('*');
+
+  if (error) {
+    console.error('Error fetching celebrations:', error.message);
+    celebrations = [];
+  } else {
+    celebrations = data || [];
+  }
 }
 
 if (loginForm) {
@@ -616,12 +622,22 @@ function cancelEditCelebration() {
   if (cancelBtn) cancelBtn.style.display = "none";
 }
 
-function deleteCelebration(id) {
+async function deleteCelebration(id) {
   if (editingCelebrationId === id) {
     cancelEditCelebration();
   }
-  celebrations = celebrations.filter(c => c.id !== id);
-  localStorage.setItem('celebrations', JSON.stringify(celebrations));
+
+  const { error } = await supabaseClient
+    .from('celebrations')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    alert("Error deleting celebration: " + error.message);
+    return;
+  }
+
+  await fetchCelebrations();
   renderBBKTab();
 }
 
@@ -879,7 +895,7 @@ function exportToPDF() {
 
 const celebrationForm = document.getElementById('celebrationForm');
 if (celebrationForm) {
-  celebrationForm.addEventListener('submit', (e) => {
+  celebrationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const purpose = document.getElementById('celebPurpose').value.trim();
     const date = document.getElementById('celebDate').value;
@@ -887,23 +903,29 @@ if (celebrationForm) {
     if (!purpose || !date) return;
 
     if (editingCelebrationId) {
-      celebrations = celebrations.map(c => {
-        if (c.id === editingCelebrationId) {
-          return { ...c, purpose: purpose.toUpperCase(), date: date };
-        }
-        return c;
-      });
+      const { error } = await supabaseClient
+        .from('celebrations')
+        .update({ purpose: purpose.toUpperCase(), date: date })
+        .eq('id', editingCelebrationId);
+
+      if (error) {
+        alert("Error updating celebration: " + error.message);
+        return;
+      }
       cancelEditCelebration();
     } else {
-      celebrations.push({
-        id: Date.now().toString(),
-        date: date,
-        purpose: purpose.toUpperCase()
-      });
+      const { error } = await supabaseClient
+        .from('celebrations')
+        .insert([{ date: date, purpose: purpose.toUpperCase() }]);
+
+      if (error) {
+        alert("Error adding celebration: " + error.message);
+        return;
+      }
       celebrationForm.reset();
     }
 
-    localStorage.setItem('celebrations', JSON.stringify(celebrations));
+    await fetchCelebrations();
     renderBBKTab();
   });
 }
