@@ -598,15 +598,24 @@ async function renderBBKTab() {
 }
 
 function editCelebration(id) {
-  const celeb = celebrations.find(c => c.id === id);
-  if (!celeb) return;
+  const celeb = celebrations.find(c => String(c.id) === String(id));
+  if (!celeb) {
+    console.error("Celebration not found for ID:", id);
+    alert("Could not find celebration event to edit.");
+    return;
+  }
 
-  editingCelebrationId = id;
-  document.getElementById('celebPurpose').value = celeb.purpose;
-  document.getElementById('celebDate').value = celeb.date;
+  editingCelebrationId = celeb.id;
+  
+  const purposeInput = document.getElementById('celebPurpose');
+  const dateInput = document.getElementById('celebDate');
+  
+  if (purposeInput) purposeInput.value = celeb.purpose || '';
+  if (dateInput) dateInput.value = celeb.date || '';
 
   const btn = document.getElementById('celebSubmitBtn');
   const cancelBtn = document.getElementById('celebCancelBtn');
+  
   if (btn) btn.innerText = "Update Event";
   if (cancelBtn) cancelBtn.style.display = "inline-block";
 }
@@ -699,21 +708,34 @@ function renderTransactions() {
 }
 
 function openEditModal(id) {
-  const tx = allTransactions.find(t => t.id === id);
-  if (!tx) return;
+  const tx = allTransactions.find(t => String(t.id) === String(id));
+  if (!tx) {
+    console.error("Transaction not found for ID:", id);
+    alert("Could not find transaction details to edit.");
+    return;
+  }
+
+  const modal = document.getElementById('editModal');
+  if (!modal) {
+    console.error("Edit modal element not found in DOM!");
+    return;
+  }
 
   document.getElementById('editId').value = tx.id;
-  document.getElementById('editDate').value = tx.date;
-  document.getElementById('editDesc').value = tx.description;
-  document.getElementById('editAmount').value = tx.amount;
-  document.getElementById('editMethod').value = tx.payment_method;
+  document.getElementById('editDate').value = tx.date || '';
+  document.getElementById('editDesc').value = tx.description || '';
+  document.getElementById('editAmount').value = tx.amount || '';
+  document.getElementById('editMethod').value = tx.payment_method || 'Credit Card';
   document.getElementById('editIsEmergency').checked = isEmergencyTx(tx);
 
-  editModal.style.display = 'flex';
+  modal.style.display = 'flex';
 }
 
 function closeEditModal() {
-  editModal.style.display = 'none';
+  const modal = document.getElementById('editModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
 }
 
 if (editForm) {
@@ -897,12 +919,17 @@ const celebrationForm = document.getElementById('celebrationForm');
 if (celebrationForm) {
   celebrationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const purpose = document.getElementById('celebPurpose').value.trim();
-    const date = document.getElementById('celebDate').value;
+    const purposeInput = document.getElementById('celebPurpose');
+    const dateInput = document.getElementById('celebDate');
+    
+    if (!purposeInput || !dateInput) return;
+
+    const purpose = purposeInput.value.trim();
+    const date = dateInput.value;
 
     if (!purpose || !date) return;
 
-    if (editingCelebrationId) {
+    if (editingCelebrationId !== null && editingCelebrationId !== undefined) {
       const { error } = await supabaseClient
         .from('celebrations')
         .update({ purpose: purpose.toUpperCase(), date: date })
