@@ -21,6 +21,30 @@ const txContainer = document.getElementById('transactionsContainer');
 const historyContainer = document.getElementById('historyContainer');
 const editModal = document.getElementById('editModal');
 
+if (document.getElementById('method')) {
+  document.getElementById('method').addEventListener('change', function() {
+    const isPaidContainer = document.getElementById('isPaidContainer');
+    if (this.value === 'Dolp' || this.value === 'Monse') {
+      isPaidContainer.style.display = 'flex';
+    } else {
+      isPaidContainer.style.display = 'none';
+      document.getElementById('isPaid').checked = false;
+    }
+  });
+}
+
+if (document.getElementById('editMethod')) {
+  document.getElementById('editMethod').addEventListener('change', function() {
+    const isPaidContainer = document.getElementById('editIsPaidContainer');
+    if (this.value === 'Dolp' || this.value === 'Monse') {
+      isPaidContainer.style.display = 'flex';
+    } else {
+      isPaidContainer.style.display = 'none';
+      document.getElementById('editIsPaid').checked = false;
+    }
+  });
+}
+
 let allTransactions = [];
 let monthFilteredTransactions = [];
 let allHistory = [];
@@ -589,10 +613,10 @@ async function renderBBKTab() {
             const dayNum = parseInt(c.date.split('-').pop(), 10);
             const dateDisplay = `${dayNum}-${dateObj.toLocaleString('default', { month: 'short' })}`;
             return `
-              <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 6px; border-left: 4px solid #0052cc; display:flex; justify-content:space-between; align-items:center;">
+              <div style="background: rgba(255, 255, 255, 0.1); padding: 8px 12px; border-radius: 6px; border-left: 4px solid #facc15; display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <strong style="display:block; font-size:0.85rem;">${c.purpose}</strong>
-                  <span style="font-size:0.75rem; color:#64748b;">${dateDisplay}</span>
+                  <strong style="display:block; font-size:0.85rem; color:#f8fafc;">${c.purpose}</strong>
+                  <span style="font-size:0.75rem; color:#cbd5e1;">${dateDisplay}</span>
                 </div>
                 <button onclick="deleteCelebration('${c.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold;">✕</button>
               </div>
@@ -693,7 +717,10 @@ function renderTransactions() {
             ${tx.description || 'No Description'}
             ${isEmerg ? '<span class="emergency-badge">Emergency</span>' : ''}
           </span>
-          <span class="tx-meta">${tx.date || ''} • ${tx.payment_method || ''}</span>
+          <span class="tx-meta">
+            ${tx.date || ''} • ${tx.payment_method || ''} 
+            ${(tx.payment_method === 'Dolp' || tx.payment_method === 'Monse') ? (tx.is_paid === true ? '<span style="color:#16a34a; font-weight:bold; margin-left:5px;">[PAID]</span>' : '<span style="color:#dc2626; font-weight:bold; margin-left:5px;">[NOT PAID]</span>') : ''}
+          </span>
         </div>
         <div class="tx-right">
           <span class="tx-amount">${Number(tx.amount).toFixed(3)} BHD</span>
@@ -723,25 +750,25 @@ function renderHistory() {
   }
 
   container.innerHTML = filteredHistory.map(h => {
-    const actionColor = h.action === 'CREATED' ? '#16a34a' : h.action === 'UPDATED' ? '#d97706' : '#dc2626';
-    const actionBg = h.action === 'CREATED' ? '#f0fdf4' : h.action === 'UPDATED' ? '#fffbeb' : '#fef2f2';
+    const actionColor = h.action === 'CREATED' ? '#4ade80' : h.action === 'UPDATED' ? '#fbbf24' : '#f87171';
+    const actionBg = h.action === 'CREATED' ? 'rgba(74, 222, 128, 0.15)' : h.action === 'UPDATED' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(248, 113, 113, 0.15)';
     const dateFormatted = new Date(h.timestamp).toLocaleString();
 
     return `
       <div style="background: ${actionBg}; border-left: 4px solid ${actionColor}; padding: 12px 16px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap;">
         <div>
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-            <span style="background: ${actionColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase;">${h.action}</span>
-            <strong style="font-size: 0.95krem; color: #1e293b;">${h.description || 'No Description'}</strong>
+            <span style="background: ${actionColor}; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase;">${h.action}</span>
+            <strong style="font-size: 0.95rem; color: #f8fafc;">${h.description || 'No Description'}</strong>
           </div>
-          <div style="font-size: 0.82rem; color: #475569;">
+          <div style="font-size: 0.82rem; color: #bae6fd;">
             <span>Amount: <strong>${Number(h.amount || 0).toFixed(3)} BHD</strong></span> • 
             <span>Method: <strong>${h.payment_method || 'N/A'}</strong></span> • 
             <span>Date: <strong>${h.date || 'N/A'}</strong></span>
           </div>
-          ${h.details ? `<div style="font-size: 0.8rem; color: #64748b; margin-top: 4px; font-style: italic;">Note: ${h.details}</div>` : ''}
+          ${h.details ? `<div style="font-size: 0.8rem; color: #cbd5e1; margin-top: 4px; font-style: italic;">Note: ${h.details}</div>` : ''}
         </div>
-        <div style="text-align: right; font-size: 0.75rem; color: #64748b;">
+        <div style="text-align: right; font-size: 0.75rem; color: #94a3b8;">
           <div>By: <strong>${h.user_email || 'User'}</strong></div>
           <div>${dateFormatted}</div>
         </div>
@@ -760,6 +787,15 @@ function openEditModal(id) {
   document.getElementById('editAmount').value = tx.amount;
   document.getElementById('editMethod').value = tx.payment_method;
   document.getElementById('editIsEmergency').checked = isEmergencyTx(tx);
+  
+  const isPaidContainer = document.getElementById('editIsPaidContainer');
+  if (tx.payment_method === 'Dolp' || tx.payment_method === 'Monse') {
+    isPaidContainer.style.display = 'flex';
+    document.getElementById('editIsPaid').checked = tx.is_paid === true;
+  } else {
+    isPaidContainer.style.display = 'none';
+    document.getElementById('editIsPaid').checked = false;
+  }
 
   editModal.style.display = 'flex';
 }
@@ -777,6 +813,7 @@ if (editForm) {
     const amount = parseFloat(document.getElementById('editAmount').value);
     const payment_method = document.getElementById('editMethod').value;
     const is_emergency = document.getElementById('editIsEmergency').checked;
+    const is_paid = document.getElementById('editIsPaid').checked;
     const year_month = date.substring(0, 7);
 
     const oldTx = allTransactions.find(t => t.id === id) || {};
@@ -789,6 +826,7 @@ if (editForm) {
         amount: amount, 
         payment_method: payment_method, 
         is_emergency: is_emergency,
+        is_paid: is_paid,
         year_month: year_month 
       })
       .eq('id', id)
@@ -832,12 +870,13 @@ if (form) {
     const amount = parseFloat(document.getElementById('amount').value);
     const payment_method = document.getElementById('method').value;
     const is_emergency = document.getElementById('isEmergency').checked;
+    const is_paid = document.getElementById('isPaid').checked;
     const year_month = date.substring(0, 7);
 
     const { data: { user } } = await supabaseClient.auth.getUser();
 
     const { data, error } = await supabaseClient.from('transactions').insert([
-      { date, description, amount, payment_method, is_emergency, year_month, user_id: user.id }
+      { date, description, amount, payment_method, is_emergency, is_paid, year_month, user_id: user.id }
     ]).select();
 
     if (error) {
