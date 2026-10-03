@@ -16,15 +16,24 @@ const kfhMonthPicker = document.getElementById('kfhMonthPicker');
 const txMonthPicker = document.getElementById('txMonthPicker');
 const bbkMonthPicker = document.getElementById('bbkMonthPicker');
 const reportMonthPicker = document.getElementById('reportMonthPicker');
+const historyMonthPicker = document.getElementById('historyMonthPicker');
 const txContainer = document.getElementById('transactionsContainer');
+const historyContainer = document.getElementById('historyContainer');
 const editModal = document.getElementById('editModal');
 
 let allTransactions = [];
 let monthFilteredTransactions = [];
+let allHistory = [];
 
 // Store Celebrations
-let celebrations = [];
-let editingCelebrationId = null;
+let celebrations = JSON.parse(localStorage.getItem('celebrations')) || [
+  { id: '1', date: '2026-07-12', purpose: "ALICIA'S BIRTHDAY" },
+  { id: '2', date: '2026-07-16', purpose: "PAPA'S BIRTHDAY" },
+  { id: '3', date: '2026-07-17', purpose: "KARMELLE'S BIRTHDAY" },
+  { id: '4', date: '2026-07-17', purpose: "VANIE'S BIRTHDAY" },
+  { id: '5', date: '2026-07-19', purpose: "JARED'S 14TH BIRTHDAY" },
+  { id: '6', date: '2026-07-21', purpose: "ANNA'S BIRTHDAY" }
+];
 
 // BBK per-month object
 let bbkMonthlyData = {};
@@ -37,6 +46,7 @@ if (kfhMonthPicker) kfhMonthPicker.value = currentYearMonth;
 if (txMonthPicker) txMonthPicker.value = currentYearMonth;
 if (bbkMonthPicker) bbkMonthPicker.value = currentYearMonth;
 if (reportMonthPicker) reportMonthPicker.value = currentYearMonth;
+if (historyMonthPicker) historyMonthPicker.value = currentYearMonth;
 if (dateInput) dateInput.value = today.toISOString().split('T')[0];
 
 async function checkAuthSession() {
@@ -47,7 +57,7 @@ async function checkAuthSession() {
     
     await fetchTransactions();
     await fetchBBKMonthlyData();
-    await fetchCelebrations();
+    await fetchHistory();
 
     syncAndApplyFilters(currentYearMonth);
     await renderBBKTab();
@@ -99,19 +109,6 @@ async function fetchBBKMonthlyData() {
 
   await renderBBKTab();
   calculateSummaries();
-}
-
-async function fetchCelebrations() {
-  const { data, error } = await supabaseClient
-    .from('celebrations')
-    .select('*');
-
-  if (error) {
-    console.error('Error fetching celebrations:', error.message);
-    celebrations = [];
-  } else {
-    celebrations = data || [];
-  }
 }
 
 if (loginForm) {
@@ -171,6 +168,7 @@ function switchTab(tabId, btnElement) {
   if (tabId === 'bbkTab') renderBBKTab();
   if (tabId === 'reportsTab' && typeof updateReportSummary === 'function') updateReportSummary();
   if (tabId === 'transactionsTab' && typeof renderTransactions === 'function') renderTransactions();
+  if (tabId === 'historyTab' && typeof renderHistory === 'function') renderHistory();
 }
 
 async function fetchTransactions() {
@@ -187,12 +185,50 @@ async function fetchTransactions() {
   allTransactions = data || [];
 }
 
+async function fetchHistory() {
+  const { data, error } = await supabaseClient
+    .from('transaction_history')
+    .select('*')
+    .order('timestamp', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching transaction history:', error.message);
+    allHistory = [];
+    return;
+  }
+
+  allHistory = data || [];
+}
+
+async function logTransactionHistory(action, txData, details = '') {
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const userEmail = user ? user.email : 'Unknown User';
+    
+    await supabaseClient.from('transaction_history').insert([{
+      action: action, // 'CREATED', 'UPDATED', 'DELETED'
+      transaction_id: txData.id || txData.transaction_id || null,
+      description: txData.description || '',
+      amount: txData.amount || 0,
+      payment_method: txData.payment_method || '',
+      date: txData.date || '',
+      user_email: userEmail,
+      details: details,
+      timestamp: new Date().toISOString()
+    }]);
+    await fetchHistory();
+  } catch (err) {
+    console.error('Failed to log history:', err);
+  }
+}
+
 function syncAndApplyFilters(selectedMonth) {
   if (monthPicker) monthPicker.value = selectedMonth;
   if (kfhMonthPicker) kfhMonthPicker.value = selectedMonth;
   if (txMonthPicker) txMonthPicker.value = selectedMonth;
   if (bbkMonthPicker) bbkMonthPicker.value = selectedMonth;
   if (reportMonthPicker) reportMonthPicker.value = selectedMonth;
+  if (historyMonthPicker) historyMonthPicker.value = selectedMonth;
 
   applyFilters();
 }
@@ -212,6 +248,7 @@ function applyFilters() {
   calculateSummaries();
   renderTransactions();
   updateReportSummary();
+  renderHistory();
 }
 
 function isEmergencyTx(tx) {
@@ -266,9 +303,26 @@ function calculateSummaries() {
     }
   });
 
-  const cashOnHand = withdrawTotal - cashSpentTotal;
+  let cumulativeWithdraw = 0;
+  let cumulativeCashSpent = 0;
+  const targetMonth = monthPicker ? monthPicker.value : currentYearMonth;
+  
+  allTransactions.forEach(t => {
+    if (!t.date) return;
+    if (t.date.substring(0, 7) <= targetMonth) {
+      const amt = Number(t.amount) || 0;
+      const method = t.payment_method || '';
+      const isEmergency = isEmergencyTx(t);
+      if (!isEmergency) {
+        if (method === 'Withdraw') cumulativeWithdraw += amt;
+        else if (method === 'Cash') cumulativeCashSpent += amt;
+      }
+    }
+  });
+
+  const cashOnHand = cumulativeWithdraw - cumulativeCashSpent;
   const benefitPayAndWithdraw = benefitPayTotal + withdrawTotal;
-  const batelcoAmount = getBatelcoSendToJoyVal() || 12.556;
+  const batelcoAmount = getBatelcoSendToJoyVal();
 
   const rent = 280.000;
   const carLoan = 123.000;
@@ -329,8 +383,7 @@ function getBatelcoSendToJoyVal() {
   const offset = getElementValue('bOffset');
 
   const total = share + installment + dolp + monse;
-  const divBy3 = total / 3;
-  return divBy3 - offset;
+  return total - offset;
 }
 
 function calculateBatelco() {
@@ -345,7 +398,7 @@ function calculateBatelco() {
   const total = fixedPayable + subTotal;
   const divBy3 = total / 3;
   const offsetTotal = offset;
-  const sendToJoy = divBy3 - offsetTotal;
+  const sendToJoy = total - offsetTotal;
 
   if (document.getElementById('bFixedPayable')) document.getElementById('bFixedPayable').innerText = `BHD ${fixedPayable.toFixed(3)}`;
   if (document.getElementById('bSubTotal')) document.getElementById('bSubTotal').innerText = `BHD ${subTotal.toFixed(3)}`;
@@ -531,7 +584,7 @@ async function renderBBKTab() {
       celebContainer.innerHTML = `<p style="color: #888; font-size: 0.9rem;">No recurring celebrations recorded for ${monthName}.</p>`;
     } else {
       celebContainer.innerHTML = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
           ${monthCelebs.map(c => {
             const dayNum = parseInt(c.date.split('-').pop(), 10);
             const dateDisplay = `${dayNum}-${dateObj.toLocaleString('default', { month: 'short' })}`;
@@ -541,10 +594,7 @@ async function renderBBKTab() {
                   <strong style="display:block; font-size:0.85rem;">${c.purpose}</strong>
                   <span style="font-size:0.75rem; color:#64748b;">${dateDisplay}</span>
                 </div>
-                <div style="display:flex; gap:6px; align-items:center;">
-                  <button onclick="editCelebration('${c.id}')" style="background:none; border:none; color:#faad14; cursor:pointer; font-weight:bold; font-size:0.85rem;" title="Edit Event">✏️</button>
-                  <button onclick="deleteCelebration('${c.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold; font-size:0.85rem;" title="Delete Event">✕</button>
-                </div>
+                <button onclick="deleteCelebration('${c.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold;">✕</button>
               </div>
             `;
           }).join('')}
@@ -597,56 +647,9 @@ async function renderBBKTab() {
   }
 }
 
-function editCelebration(id) {
-  const celeb = celebrations.find(c => String(c.id) === String(id));
-  if (!celeb) {
-    console.error("Celebration not found for ID:", id);
-    alert("Could not find celebration event to edit.");
-    return;
-  }
-
-  editingCelebrationId = celeb.id;
-  
-  const purposeInput = document.getElementById('celebPurpose');
-  const dateInput = document.getElementById('celebDate');
-  
-  if (purposeInput) purposeInput.value = celeb.purpose || '';
-  if (dateInput) dateInput.value = celeb.date || '';
-
-  const btn = document.getElementById('celebSubmitBtn');
-  const cancelBtn = document.getElementById('celebCancelBtn');
-  
-  if (btn) btn.innerText = "Update Event";
-  if (cancelBtn) cancelBtn.style.display = "inline-block";
-}
-
-function cancelEditCelebration() {
-  editingCelebrationId = null;
-  const form = document.getElementById('celebrationForm');
-  if (form) form.reset();
-
-  const btn = document.getElementById('celebSubmitBtn');
-  const cancelBtn = document.getElementById('celebCancelBtn');
-  if (btn) btn.innerText = "Add Event";
-  if (cancelBtn) cancelBtn.style.display = "none";
-}
-
-async function deleteCelebration(id) {
-  if (editingCelebrationId === id) {
-    cancelEditCelebration();
-  }
-
-  const { error } = await supabaseClient
-    .from('celebrations')
-    .delete()
-    .eq('id', id);
-
-  if (error) {
-    alert("Error deleting celebration: " + error.message);
-    return;
-  }
-
-  await fetchCelebrations();
+function deleteCelebration(id) {
+  celebrations = celebrations.filter(c => c.id !== id);
+  localStorage.setItem('celebrations', JSON.stringify(celebrations));
   renderBBKTab();
 }
 
@@ -662,11 +665,6 @@ function renderTransactions() {
   let list = monthFilteredTransactions;
   if (filterMethod === 'EMERGENCY') {
     list = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
-  } else if (filterMethod === 'GAS') {
-    list = monthFilteredTransactions.filter(tx => {
-      const desc = (tx.description || '').toLowerCase();
-      return desc.includes('gas') || desc.includes('petrol');
-    });
   } else if (filterMethod !== 'ALL') {
     list = monthFilteredTransactions.filter(tx => tx.payment_method === filterMethod);
   }
@@ -707,35 +705,67 @@ function renderTransactions() {
   }).join('');
 }
 
-function openEditModal(id) {
-  const tx = allTransactions.find(t => String(t.id) === String(id));
-  if (!tx) {
-    console.error("Transaction not found for ID:", id);
-    alert("Could not find transaction details to edit.");
+function renderHistory() {
+  const container = document.getElementById('historyContainer');
+  const historyMonthPicker = document.getElementById('historyMonthPicker');
+  const selectedMonth = historyMonthPicker ? historyMonthPicker.value : currentYearMonth;
+
+  if (!container) return;
+
+  const filteredHistory = allHistory.filter(h => {
+    if (!h.timestamp) return false;
+    return h.timestamp.substring(0, 7) === selectedMonth;
+  });
+
+  if (filteredHistory.length === 0) {
+    container.innerHTML = `<p style="text-align: center; color: #888; padding: 20px 0;">No tracking history logs found for ${selectedMonth}.</p>`;
     return;
   }
 
-  const modal = document.getElementById('editModal');
-  if (!modal) {
-    console.error("Edit modal element not found in DOM!");
-    return;
-  }
+  container.innerHTML = filteredHistory.map(h => {
+    const actionColor = h.action === 'CREATED' ? '#16a34a' : h.action === 'UPDATED' ? '#d97706' : '#dc2626';
+    const actionBg = h.action === 'CREATED' ? '#f0fdf4' : h.action === 'UPDATED' ? '#fffbeb' : '#fef2f2';
+    const dateFormatted = new Date(h.timestamp).toLocaleString();
+
+    return `
+      <div style="background: ${actionBg}; border-left: 4px solid ${actionColor}; padding: 12px 16px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span style="background: ${actionColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase;">${h.action}</span>
+            <strong style="font-size: 0.95krem; color: #1e293b;">${h.description || 'No Description'}</strong>
+          </div>
+          <div style="font-size: 0.82rem; color: #475569;">
+            <span>Amount: <strong>${Number(h.amount || 0).toFixed(3)} BHD</strong></span> • 
+            <span>Method: <strong>${h.payment_method || 'N/A'}</strong></span> • 
+            <span>Date: <strong>${h.date || 'N/A'}</strong></span>
+          </div>
+          ${h.details ? `<div style="font-size: 0.8rem; color: #64748b; margin-top: 4px; font-style: italic;">Note: ${h.details}</div>` : ''}
+        </div>
+        <div style="text-align: right; font-size: 0.75rem; color: #64748b;">
+          <div>By: <strong>${h.user_email || 'User'}</strong></div>
+          <div>${dateFormatted}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openEditModal(id) {
+  const tx = allTransactions.find(t => t.id === id);
+  if (!tx) return;
 
   document.getElementById('editId').value = tx.id;
-  document.getElementById('editDate').value = tx.date || '';
-  document.getElementById('editDesc').value = tx.description || '';
-  document.getElementById('editAmount').value = tx.amount || '';
-  document.getElementById('editMethod').value = tx.payment_method || 'Credit Card';
+  document.getElementById('editDate').value = tx.date;
+  document.getElementById('editDesc').value = tx.description;
+  document.getElementById('editAmount').value = tx.amount;
+  document.getElementById('editMethod').value = tx.payment_method;
   document.getElementById('editIsEmergency').checked = isEmergencyTx(tx);
 
-  modal.style.display = 'flex';
+  editModal.style.display = 'flex';
 }
 
 function closeEditModal() {
-  const modal = document.getElementById('editModal');
-  if (modal) {
-    modal.style.display = 'none';
-  }
+  editModal.style.display = 'none';
 }
 
 if (editForm) {
@@ -748,6 +778,8 @@ if (editForm) {
     const payment_method = document.getElementById('editMethod').value;
     const is_emergency = document.getElementById('editIsEmergency').checked;
     const year_month = date.substring(0, 7);
+
+    const oldTx = allTransactions.find(t => t.id === id) || {};
 
     const { data, error } = await supabaseClient
       .from('transactions')
@@ -765,6 +797,7 @@ if (editForm) {
     if (error) {
       alert("Error updating transaction: " + error.message);
     } else {
+      await logTransactionHistory('UPDATED', { id, description, amount, payment_method, date }, `Changed from [${oldTx.description}, ${oldTx.amount} BHD] to [${description}, ${amount} BHD]`);
       closeEditModal();
       await fetchTransactions();
       syncAndApplyFilters(year_month);
@@ -775,6 +808,8 @@ if (editForm) {
 async function deleteTransaction(id) {
   if (!confirm("Are you sure you want to delete this expense?")) return;
 
+  const txToDelete = allTransactions.find(t => t.id === id) || {};
+
   const { error } = await supabaseClient
     .from('transactions')
     .delete()
@@ -783,6 +818,7 @@ async function deleteTransaction(id) {
   if (error) {
     alert("Error deleting transaction: " + error.message);
   } else {
+    await logTransactionHistory('DELETED', txToDelete, `Deleted transaction: ${txToDelete.description} (${txToDelete.amount} BHD)`);
     await fetchTransactions();
     applyFilters();
   }
@@ -800,13 +836,15 @@ if (form) {
 
     const { data: { user } } = await supabaseClient.auth.getUser();
 
-    const { error } = await supabaseClient.from('transactions').insert([
+    const { data, error } = await supabaseClient.from('transactions').insert([
       { date, description, amount, payment_method, is_emergency, year_month, user_id: user.id }
-    ]);
+    ]).select();
 
     if (error) {
       alert("Error adding expense: " + error.message);
     } else {
+      const newTx = data && data.length > 0 ? data[0] : { description, amount, payment_method, date };
+      await logTransactionHistory('CREATED', newTx, `Added new transaction: ${description} (${amount} BHD)`);
       form.reset();
       dateInput.value = new Date().toISOString().split('T')[0];
       await fetchTransactions();
@@ -917,42 +955,21 @@ function exportToPDF() {
 
 const celebrationForm = document.getElementById('celebrationForm');
 if (celebrationForm) {
-  celebrationForm.addEventListener('submit', async (e) => {
+  celebrationForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const purposeInput = document.getElementById('celebPurpose');
-    const dateInput = document.getElementById('celebDate');
-    
-    if (!purposeInput || !dateInput) return;
-
-    const purpose = purposeInput.value.trim();
-    const date = dateInput.value;
+    const purpose = document.getElementById('celebPurpose').value.trim();
+    const date = document.getElementById('celebDate').value;
 
     if (!purpose || !date) return;
 
-    if (editingCelebrationId !== null && editingCelebrationId !== undefined) {
-      const { error } = await supabaseClient
-        .from('celebrations')
-        .update({ purpose: purpose.toUpperCase(), date: date })
-        .eq('id', editingCelebrationId);
+    celebrations.push({
+      id: Date.now().toString(),
+      date: date,
+      purpose: purpose.toUpperCase()
+    });
 
-      if (error) {
-        alert("Error updating celebration: " + error.message);
-        return;
-      }
-      cancelEditCelebration();
-    } else {
-      const { error } = await supabaseClient
-        .from('celebrations')
-        .insert([{ date: date, purpose: purpose.toUpperCase() }]);
-
-      if (error) {
-        alert("Error adding celebration: " + error.message);
-        return;
-      }
-      celebrationForm.reset();
-    }
-
-    await fetchCelebrations();
+    localStorage.setItem('celebrations', JSON.stringify(celebrations));
+    celebrationForm.reset();
     renderBBKTab();
   });
 }
