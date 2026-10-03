@@ -25,8 +25,9 @@ body::before {
 
 .app-container { 
   max-width: 800px; margin: 0 auto; 
-  /* Warm cream/ivory background representing the moon/stars - extremely readable */
-  background: rgba(255, 253, 248, 0.98); 
+  /* Lighter Starry Night background directly inside the main UI */
+  background: linear-gradient(rgba(255, 255, 255, 0.82), rgba(254, 252, 232, 0.85)), url('https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1920px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg') no-repeat center center;
+  background-size: cover;
   padding: 25px; border-radius: 16px; 
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(250, 204, 21, 0.3);
   color: #0f172a;
@@ -52,7 +53,7 @@ h3 { text-align: left; }
 .month-selector input { width: auto; padding: 8px 14px; font-weight: bold; color: #0f172a; background: #fef9c3; border: 1px solid #eab308; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.15); }
 
 .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; }
-.card { background: #ffffff; border: 1px solid rgba(30, 58, 138, 0.15); padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease; }
+.card { background: rgba(255, 255, 255, 0.85); border: 1px solid rgba(30, 58, 138, 0.15); padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease; backdrop-filter: blur(4px); }
 .card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(30, 58, 138, 0.1); border-color: #3b82f6; }
 .card-title { font-size: 0.75rem; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }
 .card-value { font-size: 1.15rem; font-weight: bold; color: #1e3a8a; }
