@@ -1,0 +1,16 @@
+{
+  "name": "Expense Tracker",
+  "short_name": "Expenses",
+  "description": "Starry Night Expense Tracker",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d1b2a",
+  "theme_color": "#bae6fd",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png"
+    }
+  ]
+}
