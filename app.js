@@ -639,7 +639,7 @@ async function renderBBKTab() {
                   <strong style="display:block; font-size:0.85rem; color:#f8fafc;">${c.purpose}</strong>
                   <span style="font-size:0.75rem; color:#cbd5e1;">${dateDisplay}</span>
                 </div>
-                <button onclick="deleteCelebration('${c.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold;">✕</button>
+                <div style="display:flex; gap: 8px;"><button onclick="editCelebration('${c.id}')" style="background:none; border:none; color:#38bdf8; cursor:pointer; font-weight:bold; font-size: 0.8rem;">Edit</button><button onclick="deleteCelebration('${c.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold; font-size: 0.8rem;">X</button></div>
               </div>
             `;
           }).join('')}
@@ -1024,19 +1024,34 @@ if (celebrationForm) {
 
     if (!purpose || !date) return;
 
-    const newId = Date.now().toString();
-    const { error } = await supabaseClient.from('celebrations').insert([{
-      id: newId,
-      date: date,
-      purpose: purpose.toUpperCase()
-    }]);
+    if (editCelebrationId) {
+      const { error } = await supabaseClient.from('celebrations').update({
+        date: date,
+        purpose: purpose.toUpperCase()
+      }).eq('id', editCelebrationId);
 
-    if (!error) {
-      await fetchCelebrations();
-      celebrationForm.reset();
-      renderBBKTab();
+      if (!error) {
+        await fetchCelebrations();
+        cancelEditCelebration();
+        renderBBKTab();
+      } else {
+        alert("Error updating celebration: " + error.message);
+      }
     } else {
-      alert("Error adding celebration: " + error.message);
+      const newId = Math.floor(Math.random() * 2100000000).toString();
+      const { error } = await supabaseClient.from('celebrations').insert([{
+        id: newId,
+        date: date,
+        purpose: purpose.toUpperCase()
+      }]);
+
+      if (!error) {
+        await fetchCelebrations();
+        celebrationForm.reset();
+        renderBBKTab();
+      } else {
+        alert("Error adding celebration: " + error.message);
+      }
     }
   });
 }
@@ -1237,4 +1252,24 @@ async function toggleBBKSavingsFieldEdit(inputId, btnId, dateInputId = null) {
       renderBBKSavingsTab();
     }
   }
+}
+
+
+let editCelebrationId = null;
+
+function editCelebration(id) {
+  const c = celebrations.find(x => String(x.id) === String(id));
+  if (!c) return;
+  editCelebrationId = id;
+  document.getElementById('celebPurpose').value = c.purpose;
+  document.getElementById('celebDate').value = c.date;
+  document.getElementById('celebSubmitBtn').innerText = 'Update Event';
+  document.getElementById('celebCancelBtn').style.display = 'inline-block';
+}
+
+function cancelEditCelebration() {
+  editCelebrationId = null;
+  document.getElementById('celebrationForm').reset();
+  document.getElementById('celebSubmitBtn').innerText = 'Add Event';
+  document.getElementById('celebCancelBtn').style.display = 'none';
 }
