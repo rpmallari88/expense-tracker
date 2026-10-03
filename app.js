@@ -51,17 +51,17 @@ let monthFilteredTransactions = [];
 let allHistory = [];
 
 // Store Celebrations
-let celebrations = JSON.parse(localStorage.getItem('celebrations')) || [
-  { id: '1', date: '2026-07-12', purpose: "ALICIA'S BIRTHDAY" },
-  { id: '2', date: '2026-07-16', purpose: "PAPA'S BIRTHDAY" },
-  { id: '3', date: '2026-07-17', purpose: "KARMELLE'S BIRTHDAY" },
-  { id: '4', date: '2026-07-17', purpose: "VANIE'S BIRTHDAY" },
-  { id: '5', date: '2026-07-19', purpose: "JARED'S 14TH BIRTHDAY" },
-  { id: '6', date: '2026-07-21', purpose: "ANNA'S BIRTHDAY" }
-];
+let celebrations = [];
 
 // BBK per-month object
 let bbkMonthlyData = {};
+
+async function fetchCelebrations() {
+  const { data, error } = await supabaseClient.from('celebrations').select('*');
+  if (data) {
+    celebrations = data;
+  }
+}
 
 const today = new Date();
 const currentYearMonth = today.toISOString().substring(0, 7);
@@ -84,6 +84,7 @@ async function checkAuthSession() {
     await fetchTransactions();
     await fetchBBKMonthlyData();
     await fetchBBKSavingsData();
+    await fetchCelebrations();
     await fetchHistory();
 
     syncAndApplyFilters(currentYearMonth);
@@ -691,10 +692,12 @@ async function renderBBKTab() {
   }
 }
 
-function deleteCelebration(id) {
-  celebrations = celebrations.filter(c => c.id !== id);
-  localStorage.setItem('celebrations', JSON.stringify(celebrations));
-  renderBBKTab();
+async function deleteCelebration(id) {
+  const { error } = await supabaseClient.from('celebrations').delete().eq('id', id);
+  if (!error) {
+    await fetchCelebrations();
+    renderBBKTab();
+  }
 }
 
 function renderTransactions() {
@@ -1014,22 +1017,27 @@ function exportToPDF() {
 
 const celebrationForm = document.getElementById('celebrationForm');
 if (celebrationForm) {
-  celebrationForm.addEventListener('submit', (e) => {
+  celebrationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const purpose = document.getElementById('celebPurpose').value.trim();
     const date = document.getElementById('celebDate').value;
 
     if (!purpose || !date) return;
 
-    celebrations.push({
-      id: Date.now().toString(),
+    const newId = Date.now().toString();
+    const { error } = await supabaseClient.from('celebrations').insert([{
+      id: newId,
       date: date,
       purpose: purpose.toUpperCase()
-    });
+    }]);
 
-    localStorage.setItem('celebrations', JSON.stringify(celebrations));
-    celebrationForm.reset();
-    renderBBKTab();
+    if (!error) {
+      await fetchCelebrations();
+      celebrationForm.reset();
+      renderBBKTab();
+    } else {
+      alert("Error adding celebration: " + error.message);
+    }
   });
 }
 
