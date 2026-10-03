@@ -309,12 +309,12 @@
       <div id="celebrationsListContainer"></div>
     </div>
 
-    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+    <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; overflow-x: auto;">
       <div style="background: #0d233a; color: white; text-align: center; padding: 8px; font-weight: bold; font-size: 1.1rem; border-radius: 4px 4px 0 0;" id="bbkHeaderMonthLabel">
         JULY
       </div>
       
-      <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+      <table style="width: 100%; border-collapse: collapse; margin-top: 15px; white-space: nowrap;">
         <thead>
           <tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
             <th style="padding: 10px; text-align: left;">DESCRIPTION</th>
@@ -393,11 +393,11 @@
       <label>📅 Select Month:</label>
       <input type="month" id="bbkSavingsMonthPicker" onchange="syncAndApplyFilters(this.value)">
     </div>
-    <div style="background: rgba(255, 255, 255, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(250, 204, 21, 0.25);">
+    <div style="background: rgba(255, 255, 255, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(250, 204, 21, 0.25); overflow-x: auto;">
       <div style="background: rgba(0, 0, 0, 0.5); color: #bae6fd; text-align: center; padding: 8px; font-weight: bold; font-size: 1.1rem; border-radius: 4px 4px 0 0;" id="bbkSavingsHeaderMonthLabel">
         MONTH
       </div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem; margin-top: 15px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem; margin-top: 15px; white-space: nowrap;">
         <tbody>
           <!-- MONTHLY SAVINGS (Input/Editable) -->
           <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
