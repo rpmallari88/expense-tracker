@@ -15,6 +15,7 @@ const monthPicker = document.getElementById('monthPicker');
 const kfhMonthPicker = document.getElementById('kfhMonthPicker');
 const txMonthPicker = document.getElementById('txMonthPicker');
 const bbkMonthPicker = document.getElementById('bbkMonthPicker');
+const bbkSavingsMonthPicker = document.getElementById('bbkSavingsMonthPicker');
 const reportMonthPicker = document.getElementById('reportMonthPicker');
 const historyMonthPicker = document.getElementById('historyMonthPicker');
 const txContainer = document.getElementById('transactionsContainer');
@@ -69,6 +70,7 @@ if (monthPicker) monthPicker.value = currentYearMonth;
 if (kfhMonthPicker) kfhMonthPicker.value = currentYearMonth;
 if (txMonthPicker) txMonthPicker.value = currentYearMonth;
 if (bbkMonthPicker) bbkMonthPicker.value = currentYearMonth;
+if (bbkSavingsMonthPicker) bbkSavingsMonthPicker.value = currentYearMonth;
 if (reportMonthPicker) reportMonthPicker.value = currentYearMonth;
 if (historyMonthPicker) historyMonthPicker.value = currentYearMonth;
 if (dateInput) dateInput.value = today.toISOString().split('T')[0];
@@ -81,10 +83,12 @@ async function checkAuthSession() {
     
     await fetchTransactions();
     await fetchBBKMonthlyData();
+    await fetchBBKSavingsData();
     await fetchHistory();
 
     syncAndApplyFilters(currentYearMonth);
     await renderBBKTab();
+    renderBBKSavingsTab();
     calculateBatelco();
 
     switchTab('dashboardTab', document.querySelector('.nav-tabs .tab-btn'));
@@ -190,6 +194,7 @@ function switchTab(tabId, btnElement) {
   if (tabId === 'billsTab') calculateSummaries();
   if (tabId === 'batelcoTab') calculateBatelco();
   if (tabId === 'bbkTab') renderBBKTab();
+  if (tabId === 'bbkSavingsTab') renderBBKSavingsTab();
   if (tabId === 'reportsTab' && typeof updateReportSummary === 'function') updateReportSummary();
   if (tabId === 'transactionsTab' && typeof renderTransactions === 'function') renderTransactions();
   if (tabId === 'historyTab' && typeof renderHistory === 'function') renderHistory();
@@ -251,6 +256,7 @@ function syncAndApplyFilters(selectedMonth) {
   if (kfhMonthPicker) kfhMonthPicker.value = selectedMonth;
   if (txMonthPicker) txMonthPicker.value = selectedMonth;
   if (bbkMonthPicker) bbkMonthPicker.value = selectedMonth;
+  if (bbkSavingsMonthPicker) bbkSavingsMonthPicker.value = selectedMonth;
   if (reportMonthPicker) reportMonthPicker.value = selectedMonth;
   if (historyMonthPicker) historyMonthPicker.value = selectedMonth;
 
@@ -269,6 +275,7 @@ function applyFilters() {
   });
 
   renderBBKTab();
+  renderBBKSavingsTab();
   calculateSummaries();
   renderTransactions();
   updateReportSummary();
@@ -372,6 +379,11 @@ function calculateSummaries() {
   if (document.getElementById('dashTotalExpenses')) document.getElementById('dashTotalExpenses').innerText = `BHD ${monthlyTotal.toFixed(3)}`;
   if (document.getElementById('dashTotalSavings')) document.getElementById('dashTotalSavings').innerText = `BHD ${totalSavings.toFixed(3)}`;
   if (document.getElementById('dashBBKCurrentAmount')) document.getElementById('dashBBKCurrentAmount').innerText = `BHD ${Number(exactBBKAmount).toFixed(3)}`;
+  
+  const currentSavingsData = bbkSavingsData[selectedMonthStr] || {};
+  const savingsCalcTotal = (currentSavingsData.monthlySavings || 0) + (currentSavingsData.currentAmount || 0) - (currentSavingsData.expenses || 0);
+  const exactSavingsAmount = (currentSavingsData.exactAmountOverride !== undefined && currentSavingsData.exactAmountOverride !== null) ? currentSavingsData.exactAmountOverride : savingsCalcTotal;
+  if (document.getElementById('dashBBKSavingsAmount')) document.getElementById('dashBBKSavingsAmount').innerText = `BHD ${Number(exactSavingsAmount).toFixed(3)}`;
 
   if (document.getElementById('kpiCC')) document.getElementById('kpiCC').innerText = `BHD ${ccTotal.toFixed(3)}`;
   if (document.getElementById('kpiEmergency')) document.getElementById('kpiEmergency').innerText = `BHD ${emergencyTotal.toFixed(3)}`;
@@ -573,7 +585,15 @@ async function renderBBKTab() {
                            (prevData.transportProfits || 0) + 
                            (prevData.currentAmount || 0);
 
-      bbkMonthlyData[mKey].currentAmount = prevSubtotal - prevDeductions;
+      const prevMonthEndTotal = prevSubtotal - prevDeductions;
+      const prevFinal = (prevData.exactAmountOverride !== undefined && prevData.exactAmountOverride !== null)
+        ? prevData.exactAmountOverride
+        : prevMonthEndTotal;
+        
+      const hasPrevActivity = (prevData.monthlySavings || 0) > 0 || (prevData.travelFund || 0) > 0 || (prevData.transportProfits || 0) > 0 || prevDeductions > 0 || (prevData.exactAmountOverride !== undefined && prevData.exactAmountOverride !== null);
+      if (hasPrevActivity || prevFinal !== 0) {
+        bbkMonthlyData[mKey].currentAmount = prevFinal;
+      }
     }
   }
 
@@ -1014,3 +1034,199 @@ if (celebrationForm) {
 }
 
 checkAuthSession();
+
+
+// ================= BBK SAVINGS LOGIC =================
+let bbkSavingsData = {};
+
+async function fetchBBKSavingsData() {
+  const { data, error } = await supabaseClient
+    .from('bbk_savings_data')
+    .select('*');
+
+  if (error) {
+    console.error('Error fetching BBK savings data:', error.message);
+    return;
+  }
+
+  bbkSavingsData = {};
+  if (data) {
+    data.forEach(row => {
+      bbkSavingsData[row.year_month] = {
+        monthlySavings: row.monthly_savings || 0,
+        expenses: row.expenses || 0,
+        currentAmount: row.current_amount || 0,
+        asOfDate: row.as_of_date || getFormattedPreviousMonthEnd(row.year_month),
+        exactAmountOverride: row.exact_amount_override
+      };
+    });
+  }
+}
+
+function renderBBKSavingsTab() {
+  const selectedMonthStr = bbkSavingsMonthPicker && bbkSavingsMonthPicker.value ? bbkSavingsMonthPicker.value : (monthPicker ? monthPicker.value : currentYearMonth);
+  const [selectedYear, selectedMonth] = selectedMonthStr.split('-');
+  
+  const dateObj = new Date(`${selectedMonthStr}-01`);
+  const monthName = dateObj.toLocaleString('default', { month: 'long' }).toUpperCase();
+
+  const labelElem = document.getElementById('bbkSavingsHeaderMonthLabel');
+  if (labelElem) labelElem.innerText = `${monthName} ${selectedYear}`;
+
+  const chronologicalMonths = [];
+  let currY = 2026;
+  let currM = 8;
+  const [targetY, targetM] = selectedMonthStr.split('-').map(Number);
+
+  while (currY < targetY || (currY === targetY && currM <= targetM)) {
+    const formattedM = String(currM).padStart(2, '0');
+    chronologicalMonths.push(`${currY}-${formattedM}`);
+    currM++;
+    if (currM > 12) { currM = 1; currY++; }
+  }
+
+  for (let i = 0; i < chronologicalMonths.length; i++) {
+    const mKey = chronologicalMonths[i];
+    if (!bbkSavingsData[mKey]) {
+      bbkSavingsData[mKey] = {
+        monthlySavings: 0,
+        expenses: 0,
+        currentAmount: 0,
+        asOfDate: getFormattedPreviousMonthEnd(mKey),
+      };
+    }
+
+    if (i > 0) {
+      const prevKey = chronologicalMonths[i - 1];
+      const prevData = bbkSavingsData[prevKey];
+      
+      const prevCalculated = (prevData.monthlySavings + prevData.currentAmount) - prevData.expenses;
+      const prevFinal = (prevData.exactAmountOverride !== undefined && prevData.exactAmountOverride !== null)
+        ? prevData.exactAmountOverride
+        : prevCalculated;
+        
+      const hasPrevActivity = prevData.monthlySavings > 0 || prevData.expenses > 0 || (prevData.exactAmountOverride !== undefined && prevData.exactAmountOverride !== null);
+      if (hasPrevActivity || prevFinal !== 0) {
+        bbkSavingsData[mKey].currentAmount = prevFinal;
+      }
+    }
+  }
+
+  const mData = bbkSavingsData[selectedMonthStr];
+
+  const mSavingsElem = document.getElementById('bbkSavingsMonthly');
+  const expensesElem = document.getElementById('bbkSavingsExpenses');
+  const cAmountElem = document.getElementById('bbkSavingsCurrentAmount');
+  const cDateElem = document.getElementById('bbkSavingsCurrentDate');
+  const exactElem = document.getElementById('bbkSavingsExactAmount');
+  const totalElem = document.getElementById('bbkSavingsMonthEndTotal');
+
+  if (mSavingsElem) mSavingsElem.value = mData.monthlySavings.toFixed(3);
+  if (expensesElem) expensesElem.value = mData.expenses.toFixed(3);
+  if (cAmountElem) cAmountElem.value = mData.currentAmount.toFixed(3);
+  
+  if (cDateElem) {
+    const rawDate = mData.asOfDate;
+    if (rawDate && rawDate.match(/^\d{2}-[a-zA-Z]{3}-\d{4}$/)) {
+      const parts = rawDate.split('-');
+      const mNames = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+      const y = parts[2];
+      const m = mNames[parts[1].toLowerCase()];
+      const d = parts[0];
+      cDateElem.value = `${y}-${m}-${d}`;
+    } else {
+      cDateElem.value = rawDate;
+    }
+  }
+
+  // MONTH END TOTAL = strictly the calculated amount
+  const calculatedTotal = (mData.monthlySavings + mData.currentAmount) - mData.expenses;
+  
+  if (totalElem) {
+    totalElem.innerText = calculatedTotal.toFixed(3);
+  }
+
+  // EXACT AMOUNT = explicitly overridden amount, OR calculated total if not overridden
+  const finalTotal = (mData.exactAmountOverride !== undefined && mData.exactAmountOverride !== null) 
+    ? mData.exactAmountOverride 
+    : calculatedTotal;
+    
+  if (exactElem) {
+    exactElem.value = finalTotal.toFixed(3);
+  }
+}
+
+async function toggleBBKSavingsFieldEdit(inputId, btnId, dateInputId = null) {
+  const inputElem = document.getElementById(inputId);
+  const btnElem = document.getElementById(btnId);
+  const dateElem = dateInputId ? document.getElementById(dateInputId) : null;
+  
+  if (!inputElem || !btnElem) return;
+
+  const selectedMonthStr = bbkSavingsMonthPicker && bbkSavingsMonthPicker.value ? bbkSavingsMonthPicker.value : (monthPicker ? monthPicker.value : currentYearMonth);
+  if (!bbkSavingsData[selectedMonthStr]) {
+    bbkSavingsData[selectedMonthStr] = {
+      monthlySavings: 0,
+      expenses: 0,
+      currentAmount: 0,
+      asOfDate: getFormattedPreviousMonthEnd(selectedMonthStr)
+    };
+  }
+
+  const isReadOnly = inputElem.hasAttribute('readonly');
+
+  if (isReadOnly) {
+    inputElem.removeAttribute('readonly');
+    inputElem.focus();
+    inputElem.select();
+    if (dateElem) dateElem.removeAttribute('readonly');
+    btnElem.innerText = 'Save';
+    btnElem.classList.add('btn-saving');
+  } else {
+    inputElem.setAttribute('readonly', 'true');
+    if (dateElem) dateElem.setAttribute('readonly', 'true');
+    btnElem.innerText = 'Edit';
+    btnElem.classList.remove('btn-saving');
+
+    const newValue = parseFloat(inputElem.value) || 0;
+
+    if (inputId === 'bbkSavingsMonthly') {
+      bbkSavingsData[selectedMonthStr].monthlySavings = newValue;
+    } else if (inputId === 'bbkSavingsExpenses') {
+      bbkSavingsData[selectedMonthStr].expenses = newValue;
+    } else if (inputId === 'bbkSavingsCurrentAmount') {
+      bbkSavingsData[selectedMonthStr].currentAmount = newValue;
+      if (dateElem && dateElem.value) {
+        const dObj = new Date(dateElem.value);
+        if (!isNaN(dObj)) {
+          const day = String(dObj.getDate()).padStart(2, '0');
+          const mName = dObj.toLocaleString('default', { month: 'short' });
+          bbkSavingsData[selectedMonthStr].asOfDate = `${day}-${mName}-${dObj.getFullYear()}`;
+        }
+      }
+    } else if (inputId === 'bbkSavingsExactAmount') {
+      bbkSavingsData[selectedMonthStr].exactAmountOverride = inputElem.value === '' ? null : newValue;
+    }
+
+    const mData = bbkSavingsData[selectedMonthStr];
+
+    const { error } = await supabaseClient
+      .from('bbk_savings_data')
+      .upsert({
+        year_month: selectedMonthStr,
+        monthly_savings: mData.monthlySavings,
+        expenses: mData.expenses,
+        current_amount: mData.currentAmount,
+        as_of_date: mData.asOfDate || getFormattedPreviousMonthEnd(selectedMonthStr),
+        exact_amount_override: mData.exactAmountOverride !== undefined ? mData.exactAmountOverride : null,
+        updated_at: new Date().toISOString()
+      });
+
+    if (error) {
+      alert("Error saving to database: " + error.message);
+    } else {
+      await fetchBBKSavingsData();
+      renderBBKSavingsTab();
+    }
+  }
+}
