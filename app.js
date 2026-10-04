@@ -417,10 +417,9 @@ function getBatelcoSendToJoyVal() {
   const installment = getElementValue('bInstallment');
   const dolp = getElementValue('bDolp');
   const monse = getElementValue('bMonse');
-  const offset = getElementValue('bOffset');
-
+  
   const total = share + installment + dolp + monse;
-  return total - offset;
+  return total / 3;
 }
 
 function calculateBatelco() {
