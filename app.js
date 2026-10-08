@@ -1301,9 +1301,23 @@ let trackerItems = [];
 let editMaintenanceId = null;
 
 async function fetchTrackerItems() {
-  const { data, error } = await supabaseClient.from('item_tracker').select('*').order('last_replaced', { ascending: true });
+  const { data, error } = await supabaseClient.from('item_tracker').select('*');
   if (data) {
-    trackerItems = data;
+    trackerItems = data.sort((a, b) => {
+      const getTarget = (item) => {
+        if (!item.lifespan_months || item.lifespan_months <= 0) return Infinity;
+        const d = new Date(item.last_replaced);
+        if (item.lifespan_unit === 'days') d.setDate(d.getDate() + Number(item.lifespan_months));
+        else d.setMonth(d.getMonth() + Number(item.lifespan_months));
+        return d.getTime();
+      };
+      
+      const targetA = getTarget(a);
+      const targetB = getTarget(b);
+      
+      if (targetA !== targetB) return targetA - targetB;
+      return new Date(a.last_replaced) - new Date(b.last_replaced);
+    });
   }
 }
 
@@ -1318,6 +1332,8 @@ function renderMaintenanceTab() {
   
   const today = new Date();
   today.setHours(0,0,0,0);
+  
+  let urgentCount = 0;
   
   container.innerHTML = trackerItems.map(item => {
     const lastReplaced = new Date(item.last_replaced);
@@ -1340,9 +1356,11 @@ function renderMaintenanceTab() {
       const targetDiffDays = Math.ceil(targetDiffTime / (1000 * 60 * 60 * 24));
       
       if (targetDiffDays < 0) {
-        statusHtml = `<div style="color: #ef4444; font-weight: bold; margin-top: 5px;">âš ï¸ OVERDUE by ${Math.abs(targetDiffDays)} days</div>`;
+        urgentCount++;
+        statusHtml = `<div style="color: #ef4444; font-weight: bold; margin-top: 5px;">&#x26A0;&#xFE0F; OVERDUE by ${Math.abs(targetDiffDays)} days</div>`;
       } else if (targetDiffDays <= 7) {
-        statusHtml = `<div style="color: #facc15; font-weight: bold; margin-top: 5px;">âš ï¸ Replace in ${targetDiffDays} days</div>`;
+        urgentCount++;
+        statusHtml = `<div style="color: #facc15; font-weight: bold; margin-top: 5px;">&#x26A0;&#xFE0F; Replace in ${targetDiffDays} days</div>`;
       } else {
         statusHtml = `<div style="color: #4ade80; margin-top: 5px;">Replace in ${targetDiffDays} days</div>`;
       }
@@ -1363,10 +1381,19 @@ function renderMaintenanceTab() {
         <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">Last Replaced: ${item.last_replaced}</div>
         ${statusHtml}
         
-        <button onclick="replacedToday('${item.id}')" style="width: 100%; margin-top: 15px; padding: 8px; background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; color: #38bdf8; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">âœ… Replaced Today</button>
+        <button onclick="replacedToday('${item.id}')" style="width: 100%; margin-top: 15px; padding: 8px; background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; color: #38bdf8; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">&#x2705; Replaced Today</button>
       </div>
     `;
   }).join('');
+
+  const tabBtn = document.querySelector('button[onclick*="maintenanceTab"]');
+  if (tabBtn) {
+     if (urgentCount > 0) {
+        tabBtn.innerHTML = `&#x1F527; Maintenance <span style="background:#ef4444; color:white; padding: 2px 6px; border-radius: 10px; font-size:0.7rem; margin-left:4px;">${urgentCount}</span>`;
+     } else {
+        tabBtn.innerHTML = `&#x1F527; Maintenance`;
+     }
+  }
 }
 
 const maintForm = document.getElementById('maintenanceForm');
