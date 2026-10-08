@@ -24,7 +24,7 @@
 <!-- Login Modal Screen -->
 <div class="modal-overlay" id="loginModal" style="display: flex;">
   <div class="modal-content">
-    <h2 style="margin-top:0; text-align: center;">ðŸ”’ Login</h2>
+    <h2 style="margin-top:0; text-align: center;">&#x1F512; Login</h2>
     <form id="loginForm">
       <div class="form-group">
         <label for="loginEmail">Username or Email</label>
@@ -91,7 +91,7 @@
         <div class="card-value" id="kpiCC">BHD 0.000</div>
       </div>
       <div class="card card-cash">
-        <div class="card-title">ðŸ’µ CASH ON HAND</div>
+        <div class="card-title">&#x1F4B5; CASH ON HAND</div>
         <div class="card-value" id="kpiCashOnHand">BHD 0.000</div>
       </div>
       <div class="card">
@@ -144,7 +144,7 @@
 
       <div class="checkbox-group">
         <input type="checkbox" id="isEmergency">
-        <label for="isEmergency">ðŸš¨ Mark as Emergency Expense</label>
+        <label for="isEmergency">&#x1F6A8; Mark as Emergency Expense</label>
       </div>
 
       <button type="submit" class="submit-btn">Add Expense</button>
@@ -156,7 +156,7 @@
     <div class="filter-section" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
       <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
         <div>
-          <label for="txMonthPicker" style="font-size: 0.85rem; font-weight: bold; margin-right: 4px;">ðŸ“… Month:</label>
+          <label for="txMonthPicker" style="font-size: 0.85rem; font-weight: bold; margin-right: 4px;">&#x1F4C5; Month:</label>
           <input type="month" id="txMonthPicker" onchange="syncAndApplyFilters(this.value)" style="padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc;">
         </div>
 
@@ -164,7 +164,7 @@
           <label for="filterMethod" style="font-size: 0.85rem; font-weight: bold; margin-right: 4px;">Filter:</label>
           <select id="filterMethod" onchange="renderTransactions()" style="padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc;">
             <option value="ALL">All Methods</option>
-            <option value="EMERGENCY">ðŸš¨ Emergency Only</option>
+            <option value="EMERGENCY">&#x1F6A8; Emergency Only</option>
             <option value="GAS">â›½ Gas Only</option>
             <option value="Credit Card">Credit Card</option>
             <option value="BenefitPay">BenefitPay</option>
@@ -193,12 +193,12 @@
   <!-- TAB 3: KFH - BILLS CHECKLIST -->
   <div id="billsTab" class="tab-content">
     <div class="month-selector">
-      <label for="kfhMonthPicker">ðŸ“… Select Month:</label>
+      <label for="kfhMonthPicker">&#x1F4C5; Select Month:</label>
       <input type="month" id="kfhMonthPicker" onchange="syncAndApplyFilters(this.value)">
     </div>
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-      <h3 style="margin:0;">ðŸ¦ KFH - Bills Checklist</h3>
+      <h3 style="margin:0;">&#x1F3E6; KFH - Bills Checklist</h3>
       <span id="billsMonthLabel" style="font-weight:bold; color:#0052cc;"></span>
     </div>
 
@@ -297,7 +297,7 @@
   <!-- TAB 4: BBK EMERGENCY & CELEBRATIONS -->
   <div id="bbkTab" class="tab-content">
     <div class="month-selector">
-      <label for="bbkMonthPicker">ðŸ“… Select Month:</label>
+      <label for="bbkMonthPicker">&#x1F4C5; Select Month:</label>
       <input type="month" id="bbkMonthPicker" onchange="syncAndApplyFilters(this.value)">
     </div>
 
@@ -394,7 +394,7 @@
   <!-- TAB 4B: BBK SAVINGS -->
   <div id="bbkSavingsTab" class="tab-content">
     <div class="month-selector">
-      <label>ðŸ“… Select Month:</label>
+      <label>&#x1F4C5; Select Month:</label>
       <input type="month" id="bbkSavingsMonthPicker" onchange="syncAndApplyFilters(this.value)">
     </div>
     <div style="background: rgba(255, 255, 255, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(250, 204, 21, 0.25); overflow-x: auto;">
@@ -527,13 +527,13 @@
   <!-- TAB 6: TRANSACTION TRACKING HISTORY -->
   <div id="historyTab" class="tab-content">
     <div class="month-selector">
-      <label for="historyMonthPicker">ðŸ“… Select History Month:</label>
+      <label for="historyMonthPicker">&#x1F4C5; Select History Month:</label>
       <input type="month" id="historyMonthPicker" onchange="renderHistory()">
     </div>
 
     <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; padding: 15px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="margin: 0; color: #0052cc;">ðŸ•’ Transaction Tracking History</h3>
+        <h3 style="margin: 0; color: #0052cc;">&#x1F552; Transaction Tracking History</h3>
         <button onclick="renderHistory()" style="width: auto; padding: 6px 12px; background: #0f172a; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">Refresh Logs</button>
       </div>
 
@@ -544,23 +544,23 @@
   <!-- TAB 7: REPORTS & EXPORT -->
   <div id="reportsTab" class="tab-content">
     <div class="month-selector">
-      <label for="reportMonthPicker">ðŸ“… Select Report Month:</label>
+      <label for="reportMonthPicker">&#x1F4C5; Select Report Month:</label>
       <input type="month" id="reportMonthPicker" onchange="syncAndApplyFilters(this.value)">
     </div>
 
     <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-      <button onclick="exportToExcel()" class="submit-btn" style="background: #107c41; margin: 0; flex: 1; min-width: 180px;">ðŸŸ¢ Export to Excel (.xlsx)</button>
-      <button onclick="exportToPDF()" class="submit-btn" style="background: #d9381e; margin: 0; flex: 1; min-width: 180px;">ðŸ”´ Export to PDF (.pdf)</button>
+      <button onclick="exportToExcel()" class="submit-btn" style="background: #107c41; margin: 0; flex: 1; min-width: 180px;">&#x1F4D8; Export to Excel (.xlsx)</button>
+      <button onclick="exportToPDF()" class="submit-btn" style="background: #d9381e; margin: 0; flex: 1; min-width: 180px;">&#x1F4D5; Export to PDF (.pdf)</button>
     </div>
 
     <div id="reportSummaryView" style="background: #f8fafc; padding: 18px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
-      <h3 style="margin-top:0; color: #0052cc;">ðŸ“Š Monthly Financial Overview</h3>
+      <h3 style="margin-top:0; color: #0052cc;">&#x1F4CA; Monthly Financial Overview</h3>
       <ul id="reportSummaryList" style="line-height: 1.8; margin-bottom: 0;"></ul>
     </div>
 
     <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; padding: 15px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <h3 style="margin: 0;">ðŸ“‹ Detailed Transaction Log</h3>
+        <h3 style="margin: 0;">&#x1F4B8; Detailed Transaction Log</h3>
         <span id="reportTxCount" style="font-size: 0.85rem; font-weight: bold; color: #64748b;">0 Items</span>
       </div>
 
@@ -642,7 +642,7 @@
       
       <div class="checkbox-group">
         <input type="checkbox" id="editIsEmergency">
-        <label for="editIsEmergency">ðŸš¨ Mark as Emergency Expense</label>
+        <label for="editIsEmergency">&#x1F6A8; Mark as Emergency Expense</label>
       </div>
 
       <div class="modal-actions">

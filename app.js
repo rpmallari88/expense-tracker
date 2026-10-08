@@ -1318,6 +1318,7 @@ async function fetchTrackerItems() {
       if (targetA !== targetB) return targetA - targetB;
       return new Date(a.last_replaced) - new Date(b.last_replaced);
     });
+    updateMaintenanceBadge();
   }
 }
 
@@ -1481,5 +1482,36 @@ async function replacedToday(id) {
   if (!error) {
     await fetchTrackerItems();
     renderMaintenanceTab();
+  }
+}
+
+
+function updateMaintenanceBadge() {
+  const tabBtn = document.querySelector('button[onclick*="maintenanceTab"]');
+  if (!tabBtn) return;
+  
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  let urgentCount = 0;
+  
+  trackerItems.forEach(item => {
+    if (!item.lifespan_months || item.lifespan_months <= 0) return;
+    const lastReplaced = new Date(item.last_replaced);
+    lastReplaced.setHours(0,0,0,0);
+    const targetDate = new Date(lastReplaced);
+    if (item.lifespan_unit === 'days') {
+      targetDate.setDate(targetDate.getDate() + Number(item.lifespan_months));
+    } else {
+      targetDate.setMonth(targetDate.getMonth() + Number(item.lifespan_months));
+    }
+    const targetDiffTime = targetDate - today;
+    const targetDiffDays = Math.ceil(targetDiffTime / (1000 * 60 * 60 * 24));
+    if (targetDiffDays <= 7) urgentCount++;
+  });
+  
+  if (urgentCount > 0) {
+     tabBtn.innerHTML = `&#x1F527; Maintenance <span style="background:#ef4444; color:white; padding: 2px 6px; border-radius: 10px; font-size:0.7rem; margin-left:4px;">${urgentCount}</span>`;
+  } else {
+     tabBtn.innerHTML = `&#x1F527; Maintenance`;
   }
 }
