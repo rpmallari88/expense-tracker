@@ -85,6 +85,7 @@ async function checkAuthSession() {
     await fetchBBKMonthlyData();
     await fetchBBKSavingsData();
     await fetchCelebrations();
+    await fetchTrackerItems();
     await fetchHistory();
 
     syncAndApplyFilters(currentYearMonth);
@@ -199,6 +200,7 @@ function switchTab(tabId, btnElement) {
   if (tabId === 'reportsTab' && typeof updateReportSummary === 'function') updateReportSummary();
   if (tabId === 'transactionsTab' && typeof renderTransactions === 'function') renderTransactions();
   if (tabId === 'historyTab' && typeof renderHistory === 'function') renderHistory();
+  if (tabId === 'maintenanceTab' && typeof renderMaintenanceTab === 'function') renderMaintenanceTab();
 }
 
 async function fetchTransactions() {
@@ -632,10 +634,28 @@ async function renderBBKTab() {
           ${monthCelebs.map(c => {
             const dayNum = parseInt(c.date.split('-').pop(), 10);
             const dateDisplay = `${dayNum}-${dateObj.toLocaleString('default', { month: 'short' })}`;
+            
+            let displayPurpose = c.purpose;
+            if (displayPurpose.includes('{AGE}')) {
+              const eventYear = parseInt(c.date.split('-')[0], 10);
+              const viewYear = parseInt(selectedMonthStr.split('-')[0], 10);
+              const age = viewYear - eventYear;
+              
+              let ordinal = age + "TH";
+              if (age > 0) {
+                const s = ["TH", "ST", "ND", "RD"];
+                const v = age % 100;
+                ordinal = age + (s[(v - 20) % 10] || s[v] || s[0]);
+              } else {
+                ordinal = age.toString();
+              }
+              displayPurpose = displayPurpose.replace('{AGE}', ordinal);
+            }
+
             return `
               <div style="background: rgba(255, 255, 255, 0.1); padding: 8px 12px; border-radius: 6px; border-left: 4px solid #facc15; display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <strong style="display:block; font-size:0.85rem; color:#f8fafc;">${c.purpose}</strong>
+                  <strong style="display:block; font-size:0.85rem; color:#f8fafc;">${displayPurpose}</strong>
                   <span style="font-size:0.75rem; color:#cbd5e1;">${dateDisplay}</span>
                 </div>
                 <div style="display:flex; gap: 8px;"><button onclick="editCelebration('${c.id}')" style="background:none; border:none; color:#38bdf8; cursor:pointer; font-weight:bold; font-size: 0.8rem;">Edit</button><button onclick="deleteCelebration('${c.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold; font-size: 0.8rem;">X</button></div>
@@ -695,6 +715,7 @@ async function deleteCelebration(id) {
   const { error } = await supabaseClient.from('celebrations').delete().eq('id', id);
   if (!error) {
     await fetchCelebrations();
+    await fetchTrackerItems();
     renderBBKTab();
   }
 }
@@ -1031,6 +1052,7 @@ if (celebrationForm) {
 
       if (!error) {
         await fetchCelebrations();
+    await fetchTrackerItems();
         cancelEditCelebration();
         renderBBKTab();
       } else {
@@ -1046,6 +1068,7 @@ if (celebrationForm) {
 
       if (!error) {
         await fetchCelebrations();
+    await fetchTrackerItems();
         celebrationForm.reset();
         renderBBKTab();
       } else {
@@ -1271,4 +1294,157 @@ function cancelEditCelebration() {
   document.getElementById('celebrationForm').reset();
   document.getElementById('celebSubmitBtn').innerText = 'Add Event';
   document.getElementById('celebCancelBtn').style.display = 'none';
+}
+
+// ================= MAINTENANCE / ITEM TRACKER =================
+let trackerItems = [];
+let editMaintenanceId = null;
+
+async function fetchTrackerItems() {
+  const { data, error } = await supabaseClient.from('item_tracker').select('*').order('last_replaced', { ascending: true });
+  if (data) {
+    trackerItems = data;
+  }
+}
+
+function renderMaintenanceTab() {
+  const container = document.getElementById('maintenanceListContainer');
+  if (!container) return;
+  
+  if (trackerItems.length === 0) {
+    container.innerHTML = '<p style="color:#cbd5e1; grid-column: 1/-1; text-align:center;">No items tracked yet.</p>';
+    return;
+  }
+  
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  
+  container.innerHTML = trackerItems.map(item => {
+    const lastReplaced = new Date(item.last_replaced);
+    lastReplaced.setHours(0,0,0,0);
+    const diffTime = today - lastReplaced;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    let statusHtml = '';
+    
+    if (item.lifespan_months && item.lifespan_months > 0) {
+      // Calculate target date
+      const targetDate = new Date(lastReplaced);
+      targetDate.setMonth(targetDate.getMonth() + Number(item.lifespan_months));
+      
+      const targetDiffTime = targetDate - today;
+      const targetDiffDays = Math.ceil(targetDiffTime / (1000 * 60 * 60 * 24));
+      
+      if (targetDiffDays < 0) {
+        statusHtml = `<div style="color: #ef4444; font-weight: bold; margin-top: 5px;">âš ï¸ OVERDUE by ${Math.abs(targetDiffDays)} days</div>`;
+      } else if (targetDiffDays <= 7) {
+        statusHtml = `<div style="color: #facc15; font-weight: bold; margin-top: 5px;">âš ï¸ Replace in ${targetDiffDays} days</div>`;
+      } else {
+        statusHtml = `<div style="color: #4ade80; margin-top: 5px;">Replace in ${targetDiffDays} days</div>`;
+      }
+      statusHtml += `<div style="font-size: 0.75rem; color: #cbd5e1;">Target: ${targetDate.toISOString().split('T')[0]}</div>`;
+    } else {
+      statusHtml = `<div style="color: #38bdf8; font-weight: bold; margin-top: 5px;">Active for ${diffDays} days</div>`;
+    }
+    
+    return `
+      <div style="background: rgba(0, 0, 0, 0.4); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); position: relative;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <strong style="color:white; font-size: 1.1rem;">${item.item_name}</strong>
+          <div style="display:flex; gap: 8px;">
+            <button onclick="editMaintenance('${item.id}')" style="background:none; border:none; color:#38bdf8; cursor:pointer; font-weight:bold; font-size: 0.8rem;">Edit</button>
+            <button onclick="deleteMaintenance('${item.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold; font-size: 0.8rem;">X</button>
+          </div>
+        </div>
+        <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">Last Replaced: ${item.last_replaced}</div>
+        ${statusHtml}
+        
+        <button onclick="replacedToday('${item.id}')" style="width: 100%; margin-top: 15px; padding: 8px; background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; color: #38bdf8; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">âœ… Replaced Today</button>
+      </div>
+    `;
+  }).join('');
+}
+
+const maintForm = document.getElementById('maintenanceForm');
+if (maintForm) {
+  maintForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('maintName').value.trim();
+    const date = document.getElementById('maintDate').value;
+    const lifespan = document.getElementById('maintLifespan').value;
+    const lifespanVal = lifespan ? parseFloat(lifespan) : null;
+    
+    if (!name || !date) return;
+    
+    if (editMaintenanceId) {
+      const { error } = await supabaseClient.from('item_tracker').update({
+        item_name: name,
+        last_replaced: date,
+        lifespan_months: lifespanVal
+      }).eq('id', editMaintenanceId);
+      
+      if (!error) {
+        await fetchTrackerItems();
+        cancelEditMaintenance();
+        renderMaintenanceTab();
+      } else { alert(error.message); }
+    } else {
+      const newId = Math.floor(Math.random() * 2100000000).toString();
+      const { error } = await supabaseClient.from('item_tracker').insert([{
+        id: newId,
+        item_name: name,
+        last_replaced: date,
+        lifespan_months: lifespanVal
+      }]);
+      
+      if (!error) {
+        await fetchTrackerItems();
+        maintForm.reset();
+        renderMaintenanceTab();
+      } else { alert(error.message); }
+    }
+  });
+}
+
+function editMaintenance(id) {
+  const item = trackerItems.find(x => String(x.id) === String(id));
+  if (!item) return;
+  editMaintenanceId = id;
+  document.getElementById('maintName').value = item.item_name;
+  document.getElementById('maintDate').value = item.last_replaced;
+  document.getElementById('maintLifespan').value = item.lifespan_months || '';
+  document.getElementById('maintSubmitBtn').innerText = 'Update Item';
+  document.getElementById('maintCancelBtn').style.display = 'inline-block';
+}
+
+function cancelEditMaintenance() {
+  editMaintenanceId = null;
+  document.getElementById('maintenanceForm').reset();
+  document.getElementById('maintSubmitBtn').innerText = 'Add Item';
+  document.getElementById('maintCancelBtn').style.display = 'none';
+}
+
+async function deleteMaintenance(id) {
+  if (!confirm('Delete this item?')) return;
+  const { error } = await supabaseClient.from('item_tracker').delete().eq('id', id);
+  if (!error) {
+    await fetchTrackerItems();
+    renderMaintenanceTab();
+  }
+}
+
+async function replacedToday(id) {
+  // Convert current local date to YYYY-MM-DD correctly taking timezone into account
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  const todayStr = d.toISOString().split('T')[0];
+  
+  const { error } = await supabaseClient.from('item_tracker').update({
+    last_replaced: todayStr
+  }).eq('id', id);
+  
+  if (!error) {
+    await fetchTrackerItems();
+    renderMaintenanceTab();
+  }
 }

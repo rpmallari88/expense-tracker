@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -24,7 +24,7 @@
 <!-- Login Modal Screen -->
 <div class="modal-overlay" id="loginModal" style="display: flex;">
   <div class="modal-content">
-    <h2 style="margin-top:0; text-align: center;">🔒 Login</h2>
+    <h2 style="margin-top:0; text-align: center;">ðŸ”’ Login</h2>
     <form id="loginForm">
       <div class="form-group">
         <label for="loginEmail">Username or Email</label>
@@ -32,7 +32,7 @@
       </div>
       <div class="form-group">
         <label for="loginPassword">Password</label>
-        <input type="password" id="loginPassword" placeholder="••••••••" required>
+        <input type="password" id="loginPassword" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required>
       </div>
       <p id="loginError" style="color: #ff4d4f; font-size: 0.85rem; display: none;"></p>
       <button type="submit" class="submit-btn" style="margin-top: 15px;">Log In</button>
@@ -42,26 +42,27 @@
 
 <div class="app-container" id="appContainer" style="display: none;">
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-    <h1 style="margin: 0;">💰 Expense Tracker</h1>
+    <h1 style="margin: 0;">&#x1F4B0; Expense Tracker</h1>
     <button onclick="handleLogout()" style="width: auto; padding: 6px 12px; background: #ff4d4f; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Logout</button>
   </div>
 
   <!-- Navigation Bar -->
   <div class="nav-tabs">
-    <button class="tab-btn active" onclick="switchTab('dashboardTab', this)">🏠 Dashboard</button>
-    <button class="tab-btn" onclick="switchTab('transactionsTab', this)">📋 Transactions</button>
-    <button class="tab-btn" onclick="switchTab('billsTab', this)">🏦 KFH</button>
-    <button class="tab-btn" onclick="switchTab('bbkTab', this)">🚨 BBK Emergency</button>
-    <button class="tab-btn" onclick="switchTab('bbkSavingsTab', this)">💰 BBK Savings</button>
-    <button class="tab-btn" onclick="switchTab('batelcoTab', this)">📱 Batelco</button>
-    <button class="tab-btn" onclick="switchTab('historyTab', this)">🕒 History</button>
-    <button class="tab-btn" onclick="switchTab('reportsTab', this)">📊 Reports</button>
+    <button class="tab-btn active" onclick="switchTab('dashboardTab', this)">&#x1F4CA; Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('transactionsTab', this)">&#x1F4B8; Transactions</button>
+    <button class="tab-btn" onclick="switchTab('billsTab', this)">&#x1F3E6; KFH</button>
+    <button class="tab-btn" onclick="switchTab('bbkTab', this)">&#x1F6A8; BBK Emergency</button>
+    <button class="tab-btn" onclick="switchTab('bbkSavingsTab', this)">&#x1F4B0; BBK Savings</button>
+    <button class="tab-btn" onclick="switchTab('batelcoTab', this)">&#x1F4F1; Batelco</button>
+    <button class="tab-btn" onclick="switchTab('maintenanceTab', this)">&#x1F527; Maintenance</button>
+    <button class="tab-btn" onclick="switchTab('historyTab', this)">&#x1F552; History</button>
+    <button class="tab-btn" onclick="switchTab('reportsTab', this)">&#x1F4CA; Reports</button>
   </div>
 
   <!-- TAB 1: DASHBOARD -->
   <div id="dashboardTab" class="tab-content active">
     <div class="month-selector">
-      <label for="monthPicker">📅 Selected Month:</label>
+      <label for="monthPicker">&#x1F4C5; Selected Month:</label>
       <input type="month" id="monthPicker" onchange="syncAndApplyFilters(this.value)">
     </div>
 
@@ -90,7 +91,7 @@
         <div class="card-value" id="kpiCC">BHD 0.000</div>
       </div>
       <div class="card card-cash">
-        <div class="card-title">💵 CASH ON HAND</div>
+        <div class="card-title">ðŸ’µ CASH ON HAND</div>
         <div class="card-value" id="kpiCashOnHand">BHD 0.000</div>
       </div>
       <div class="card">
@@ -138,12 +139,12 @@
 
       <div class="checkbox-group" id="isPaidContainer" style="display: none;">
         <input type="checkbox" id="isPaid">
-        <label for="isPaid">✅ Mark as Paid</label>
+        <label for="isPaid">âœ… Mark as Paid</label>
       </div>
 
       <div class="checkbox-group">
         <input type="checkbox" id="isEmergency">
-        <label for="isEmergency">🚨 Mark as Emergency Expense</label>
+        <label for="isEmergency">ðŸš¨ Mark as Emergency Expense</label>
       </div>
 
       <button type="submit" class="submit-btn">Add Expense</button>
@@ -155,7 +156,7 @@
     <div class="filter-section" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
       <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
         <div>
-          <label for="txMonthPicker" style="font-size: 0.85rem; font-weight: bold; margin-right: 4px;">📅 Month:</label>
+          <label for="txMonthPicker" style="font-size: 0.85rem; font-weight: bold; margin-right: 4px;">ðŸ“… Month:</label>
           <input type="month" id="txMonthPicker" onchange="syncAndApplyFilters(this.value)" style="padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc;">
         </div>
 
@@ -163,8 +164,8 @@
           <label for="filterMethod" style="font-size: 0.85rem; font-weight: bold; margin-right: 4px;">Filter:</label>
           <select id="filterMethod" onchange="renderTransactions()" style="padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc;">
             <option value="ALL">All Methods</option>
-            <option value="EMERGENCY">🚨 Emergency Only</option>
-            <option value="GAS">⛽ Gas Only</option>
+            <option value="EMERGENCY">ðŸš¨ Emergency Only</option>
+            <option value="GAS">â›½ Gas Only</option>
             <option value="Credit Card">Credit Card</option>
             <option value="BenefitPay">BenefitPay</option>
             <option value="Cash">Cash</option>
@@ -192,12 +193,12 @@
   <!-- TAB 3: KFH - BILLS CHECKLIST -->
   <div id="billsTab" class="tab-content">
     <div class="month-selector">
-      <label for="kfhMonthPicker">📅 Select Month:</label>
+      <label for="kfhMonthPicker">ðŸ“… Select Month:</label>
       <input type="month" id="kfhMonthPicker" onchange="syncAndApplyFilters(this.value)">
     </div>
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-      <h3 style="margin:0;">🏦 KFH - Bills Checklist</h3>
+      <h3 style="margin:0;">ðŸ¦ KFH - Bills Checklist</h3>
       <span id="billsMonthLabel" style="font-weight:bold; color:#0052cc;"></span>
     </div>
 
@@ -296,14 +297,14 @@
   <!-- TAB 4: BBK EMERGENCY & CELEBRATIONS -->
   <div id="bbkTab" class="tab-content">
     <div class="month-selector">
-      <label for="bbkMonthPicker">📅 Select Month:</label>
+      <label for="bbkMonthPicker">ðŸ“… Select Month:</label>
       <input type="month" id="bbkMonthPicker" onchange="syncAndApplyFilters(this.value)">
     </div>
 
     <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
-      <h3 style="margin-top:0; color:#0052cc;">🎉 Celebrations & Birthdays</h3>
+      <h3 style="margin-top:0; color:#0052cc;">&#x1F389; Celebrations & Birthdays</h3>
       <form id="celebrationForm" style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
-        <input type="text" id="celebPurpose" placeholder="e.g. ALICIA'S BIRTHDAY" required style="flex:2; min-width: 150px;">
+        <input type="text" id="celebPurpose" placeholder="e.g. JARED'S {age} BIRTHDAY" required style="flex:2; min-width: 150px;">
         <input type="date" id="celebDate" required style="flex:1; min-width: 130px;">
         <button type="submit" class="submit-btn" id="celebSubmitBtn" style="margin:0; width:auto; padding: 8px 16px;">Add Event</button>
         <button type="button" class="cancel-btn" id="celebCancelBtn" onclick="cancelEditCelebration()" style="display: none; width: auto; margin:0; padding: 8px 16px;">Cancel</button>
@@ -393,7 +394,7 @@
   <!-- TAB 4B: BBK SAVINGS -->
   <div id="bbkSavingsTab" class="tab-content">
     <div class="month-selector">
-      <label>📅 Select Month:</label>
+      <label>ðŸ“… Select Month:</label>
       <input type="month" id="bbkSavingsMonthPicker" onchange="syncAndApplyFilters(this.value)">
     </div>
     <div style="background: rgba(255, 255, 255, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(250, 204, 21, 0.25); overflow-x: auto;">
@@ -526,13 +527,13 @@
   <!-- TAB 6: TRANSACTION TRACKING HISTORY -->
   <div id="historyTab" class="tab-content">
     <div class="month-selector">
-      <label for="historyMonthPicker">📅 Select History Month:</label>
+      <label for="historyMonthPicker">ðŸ“… Select History Month:</label>
       <input type="month" id="historyMonthPicker" onchange="renderHistory()">
     </div>
 
     <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; padding: 15px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="margin: 0; color: #0052cc;">🕒 Transaction Tracking History</h3>
+        <h3 style="margin: 0; color: #0052cc;">ðŸ•’ Transaction Tracking History</h3>
         <button onclick="renderHistory()" style="width: auto; padding: 6px 12px; background: #0f172a; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">Refresh Logs</button>
       </div>
 
@@ -543,23 +544,23 @@
   <!-- TAB 7: REPORTS & EXPORT -->
   <div id="reportsTab" class="tab-content">
     <div class="month-selector">
-      <label for="reportMonthPicker">📅 Select Report Month:</label>
+      <label for="reportMonthPicker">ðŸ“… Select Report Month:</label>
       <input type="month" id="reportMonthPicker" onchange="syncAndApplyFilters(this.value)">
     </div>
 
     <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-      <button onclick="exportToExcel()" class="submit-btn" style="background: #107c41; margin: 0; flex: 1; min-width: 180px;">🟢 Export to Excel (.xlsx)</button>
-      <button onclick="exportToPDF()" class="submit-btn" style="background: #d9381e; margin: 0; flex: 1; min-width: 180px;">🔴 Export to PDF (.pdf)</button>
+      <button onclick="exportToExcel()" class="submit-btn" style="background: #107c41; margin: 0; flex: 1; min-width: 180px;">ðŸŸ¢ Export to Excel (.xlsx)</button>
+      <button onclick="exportToPDF()" class="submit-btn" style="background: #d9381e; margin: 0; flex: 1; min-width: 180px;">ðŸ”´ Export to PDF (.pdf)</button>
     </div>
 
     <div id="reportSummaryView" style="background: #f8fafc; padding: 18px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
-      <h3 style="margin-top:0; color: #0052cc;">📊 Monthly Financial Overview</h3>
+      <h3 style="margin-top:0; color: #0052cc;">ðŸ“Š Monthly Financial Overview</h3>
       <ul id="reportSummaryList" style="line-height: 1.8; margin-bottom: 0;"></ul>
     </div>
 
     <div style="background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; padding: 15px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <h3 style="margin: 0;">📋 Detailed Transaction Log</h3>
+        <h3 style="margin: 0;">ðŸ“‹ Detailed Transaction Log</h3>
         <span id="reportTxCount" style="font-size: 0.85rem; font-weight: bold; color: #64748b;">0 Items</span>
       </div>
 
@@ -581,10 +582,33 @@
   </div>
 </div>
 
+
+  <!-- TAB 9: MAINTENANCE / ITEM TRACKER -->
+  <div id="maintenanceTab" class="tab-content">
+    <div style="background: rgba(255, 255, 255, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(250, 204, 21, 0.25); margin-bottom: 20px;">
+      <h3 style="margin-top:0; color:#facc15; text-align: center;">&#x1F527; Maintenance & Replenishments</h3>
+      <p style="color: #cbd5e1; font-size: 0.9rem; text-align: center; margin-bottom: 15px;">Track household items, toothbrushes, filters, and scents.</p>
+      
+      <form id="maintenanceForm" style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px;">
+        <input type="text" id="maintName" placeholder="e.g. Toothbrush, House Scent" required style="flex:2; min-width: 150px;">
+        <div style="display: flex; gap: 5px; flex:1; min-width: 130px; align-items: center; background: #0f172a; border-radius: 6px; padding: 0 8px;">
+          <input type="number" id="maintLifespan" placeholder="Months (Optional)" style="width: 100%; border: none; background: transparent; color: white;">
+          <span style="color:#94a3b8; font-size: 0.8rem;">mo.</span>
+        </div>
+        <input type="date" id="maintDate" required style="flex:1; min-width: 130px;">
+        <button type="submit" class="submit-btn" id="maintSubmitBtn" style="margin:0; width:auto; padding: 8px 16px;">Add Item</button>
+        <button type="button" class="cancel-btn" id="maintCancelBtn" onclick="cancelEditMaintenance()" style="display: none; width: auto; margin:0; padding: 8px 16px;">Cancel</button>
+      </form>
+      
+      <div id="maintenanceListContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+        <!-- Items render here -->
+      </div>
+    </div>
+  </div>
 <!-- Edit Transaction Modal -->
 <div class="modal-overlay" id="editModal">
   <div class="modal-content">
-    <h3 style="margin-top:0;">✏️ Edit Transaction</h3>
+    <h3 style="margin-top:0;">&#x270F; Edit Transaction</h3>
     <form id="editForm">
       <input type="hidden" id="editId">
       <div class="form-group">
@@ -613,12 +637,12 @@
       
       <div class="checkbox-group" id="editIsPaidContainer" style="display: none;">
         <input type="checkbox" id="editIsPaid">
-        <label for="editIsPaid">✅ Mark as Paid</label>
+        <label for="editIsPaid">âœ… Mark as Paid</label>
       </div>
       
       <div class="checkbox-group">
         <input type="checkbox" id="editIsEmergency">
-        <label for="editIsEmergency">🚨 Mark as Emergency Expense</label>
+        <label for="editIsEmergency">ðŸš¨ Mark as Emergency Expense</label>
       </div>
 
       <div class="modal-actions">
