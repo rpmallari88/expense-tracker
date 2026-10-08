@@ -591,9 +591,9 @@
       
       <form id="maintenanceForm" style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px;">
         <input type="text" id="maintName" placeholder="e.g. Toothbrush, House Scent" required style="flex:2; min-width: 150px;">
-        <div style="display: flex; gap: 5px; flex:1; min-width: 130px; align-items: center; background: #0f172a; border-radius: 6px; padding: 0 8px;">
-          <input type="number" id="maintLifespan" placeholder="Months (Optional)" style="width: 100%; border: none; background: transparent; color: white;">
-          <span style="color:#94a3b8; font-size: 0.8rem;">mo.</span>
+        <div style="display: flex; gap: 5px; flex:1; min-width: 150px; align-items: center; background: #0f172a; border-radius: 6px; padding: 0 8px;">
+          <input type="number" id="maintLifespan" placeholder="Lifespan" style="width: 100%; border: none; background: transparent; color: white;">
+          <select id="maintLifespanUnit" style="background: transparent; color: #94a3b8; border: none; font-size: 0.8rem; cursor: pointer;"><option value="months">Months</option><option value="days">Days</option></select>
         </div>
         <input type="date" id="maintDate" required style="flex:1; min-width: 130px;">
         <button type="submit" class="submit-btn" id="maintSubmitBtn" style="margin:0; width:auto; padding: 8px 16px;">Add Item</button>

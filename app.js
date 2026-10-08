@@ -1330,7 +1330,11 @@ function renderMaintenanceTab() {
     if (item.lifespan_months && item.lifespan_months > 0) {
       // Calculate target date
       const targetDate = new Date(lastReplaced);
-      targetDate.setMonth(targetDate.getMonth() + Number(item.lifespan_months));
+      if (item.lifespan_unit === 'days') {
+        targetDate.setDate(targetDate.getDate() + Number(item.lifespan_months));
+      } else {
+        targetDate.setMonth(targetDate.getMonth() + Number(item.lifespan_months));
+      }
       
       const targetDiffTime = targetDate - today;
       const targetDiffDays = Math.ceil(targetDiffTime / (1000 * 60 * 60 * 24));
@@ -1372,6 +1376,7 @@ if (maintForm) {
     const name = document.getElementById('maintName').value.trim();
     const date = document.getElementById('maintDate').value;
     const lifespan = document.getElementById('maintLifespan').value;
+    const unit = document.getElementById('maintLifespanUnit').value;
     const lifespanVal = lifespan ? parseFloat(lifespan) : null;
     
     if (!name || !date) return;
@@ -1380,7 +1385,8 @@ if (maintForm) {
       const { error } = await supabaseClient.from('item_tracker').update({
         item_name: name,
         last_replaced: date,
-        lifespan_months: lifespanVal
+        lifespan_months: lifespanVal,
+        lifespan_unit: unit
       }).eq('id', editMaintenanceId);
       
       if (!error) {
@@ -1394,7 +1400,8 @@ if (maintForm) {
         id: newId,
         item_name: name,
         last_replaced: date,
-        lifespan_months: lifespanVal
+        lifespan_months: lifespanVal,
+        lifespan_unit: unit
       }]);
       
       if (!error) {
@@ -1413,6 +1420,7 @@ function editMaintenance(id) {
   document.getElementById('maintName').value = item.item_name;
   document.getElementById('maintDate').value = item.last_replaced;
   document.getElementById('maintLifespan').value = item.lifespan_months || '';
+  document.getElementById('maintLifespanUnit').value = item.lifespan_unit || 'months';
   document.getElementById('maintSubmitBtn').innerText = 'Update Item';
   document.getElementById('maintCancelBtn').style.display = 'inline-block';
 }
