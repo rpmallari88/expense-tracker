@@ -291,6 +291,11 @@ function isEmergencyTx(tx) {
   return tx.is_emergency === true || legacyKeywords.some(k => desc.includes(k));
 }
 
+function isGasTx(tx) {
+  const desc = (tx.description || '').toLowerCase();
+  return desc.includes('gas') || desc.includes('bapco');
+}
+
 function calculateSummaries() {
   let ccTotal = 0;
   let emergencyTotal = 0;
@@ -732,6 +737,8 @@ function renderTransactions() {
   let list = monthFilteredTransactions;
   if (filterMethod === 'EMERGENCY') {
     list = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
+  } else if (filterMethod === 'GAS') {
+    list = monthFilteredTransactions.filter(tx => isGasTx(tx));
   } else if (filterMethod !== 'ALL') {
     list = monthFilteredTransactions.filter(tx => tx.payment_method === filterMethod);
   }
