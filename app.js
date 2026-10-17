@@ -721,6 +721,10 @@ async function renderBBKTab() {
 }
 
 async function deleteCelebration(id) {
+  const c = celebrations.find(x => String(x.id) === String(id));
+  const name = c ? c.purpose : 'this celebrant';
+  if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
   const { error } = await supabaseClient.from('celebrations').delete().eq('id', id);
   if (!error) {
     await fetchCelebrations();
@@ -1472,7 +1476,10 @@ function cancelEditMaintenance() {
 }
 
 async function deleteMaintenance(id) {
-  if (!confirm('Delete this item?')) return;
+  const item = trackerItems.find(x => String(x.id) === String(id));
+  const name = item ? item.item_name : 'this item';
+  if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
   const { error } = await supabaseClient.from('item_tracker').delete().eq('id', id);
   if (!error) {
     await fetchTrackerItems();
@@ -1807,7 +1814,10 @@ function cancelEditWarranty() {
 }
 
 async function deleteWarranty(id) {
-  if (!confirm('Are you sure you want to delete this warranty item?')) return;
+  const item = warrantyItems.find(x => String(x.id) === String(id));
+  const name = item ? item.item_name : 'this warranty item';
+  if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
   const { error } = await supabaseClient.from('warranties').delete().eq('id', id);
   if (!error) {
     await fetchWarranties();
