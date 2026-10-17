@@ -86,6 +86,7 @@ async function checkAuthSession() {
     await fetchBBKSavingsData();
     await fetchCelebrations();
     await fetchTrackerItems();
+    await fetchWarranties();
     await fetchHistory();
 
     syncAndApplyFilters(currentYearMonth);
@@ -200,7 +201,10 @@ function switchTab(tabId, btnElement) {
   if (tabId === 'reportsTab' && typeof updateReportSummary === 'function') updateReportSummary();
   if (tabId === 'transactionsTab' && typeof renderTransactions === 'function') renderTransactions();
   if (tabId === 'historyTab' && typeof renderHistory === 'function') renderHistory();
-  if (tabId === 'maintenanceTab' && typeof renderMaintenanceTab === 'function') renderMaintenanceTab();
+  if (tabId === 'maintenanceTab') {
+    if (typeof renderMaintenanceTab === 'function') renderMaintenanceTab();
+    if (typeof renderWarranties === 'function') renderWarranties();
+  }
 }
 
 async function fetchTransactions() {
@@ -1515,10 +1519,300 @@ function updateMaintenanceBadge() {
     const targetDiffDays = Math.ceil(targetDiffTime / (1000 * 60 * 60 * 24));
     if (targetDiffDays <= 7) urgentCount++;
   });
+
+  warrantyItems.forEach(w => {
+    if (!w.warranty_duration || w.warranty_duration <= 0) return;
+    const pDate = new Date(w.purchase_date);
+    pDate.setHours(0,0,0,0);
+    const expDate = new Date(pDate);
+    if (w.warranty_unit === 'months') {
+      expDate.setMonth(expDate.getMonth() + Number(w.warranty_duration));
+    } else {
+      expDate.setFullYear(expDate.getFullYear() + Number(w.warranty_duration));
+    }
+    const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+    // Count if expiring within 30 days or already expired
+    if (diffDays <= 30) urgentCount++;
+  });
   
   if (urgentCount > 0) {
      tabBtn.innerHTML = `&#x1F527; Maintenance <span style="background:#ef4444; color:white; padding: 2px 6px; border-radius: 10px; font-size:0.7rem; margin-left:4px;">${urgentCount}</span>`;
   } else {
      tabBtn.innerHTML = `&#x1F527; Maintenance`;
+  }
+}
+
+// ==========================================
+// WARRANTIES & RECEIPTS LOGIC
+// ==========================================
+let warrantyItems = [];
+let editWarrantyId = null;
+
+function switchMaintenanceSubTab(sub) {
+  const replBtn = document.getElementById('subTabReplenishBtn');
+  const warrBtn = document.getElementById('subTabWarrantyBtn');
+  const replSec = document.getElementById('maintReplenishSection');
+  const warrSec = document.getElementById('maintWarrantySection');
+
+  if (sub === 'replenish') {
+    if (replBtn) { replBtn.style.background = '#facc15'; replBtn.style.color = '#000'; }
+    if (warrBtn) { warrBtn.style.background = 'rgba(56, 189, 248, 0.15)'; warrBtn.style.color = '#38bdf8'; }
+    if (replSec) replSec.style.display = 'block';
+    if (warrSec) warrSec.style.display = 'none';
+    renderMaintenanceTab();
+  } else {
+    if (warrBtn) { warrBtn.style.background = '#38bdf8'; warrBtn.style.color = '#000'; }
+    if (replBtn) { replBtn.style.background = 'rgba(250, 204, 21, 0.15)'; replBtn.style.color = '#facc15'; }
+    if (replSec) replSec.style.display = 'none';
+    if (warrSec) warrSec.style.display = 'block';
+    renderWarranties();
+  }
+}
+
+async function fetchWarranties() {
+  const { data, error } = await supabaseClient.from('warranties').select('*');
+  if (data) {
+    warrantyItems = data.sort((a, b) => {
+      const getExp = (w) => {
+        const d = new Date(w.purchase_date);
+        if (w.warranty_unit === 'months') d.setMonth(d.getMonth() + Number(w.warranty_duration));
+        else d.setFullYear(d.getFullYear() + Number(w.warranty_duration));
+        return d.getTime();
+      };
+      return getExp(a) - getExp(b);
+    });
+    updateMaintenanceBadge();
+  }
+}
+
+function renderWarranties() {
+  const container = document.getElementById('warrantyListContainer');
+  if (!container) return;
+
+  if (warrantyItems.length === 0) {
+    container.innerHTML = '<p style="color:#cbd5e1; grid-column: 1/-1; text-align:center;">No warranties tracked yet.</p>';
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  container.innerHTML = warrantyItems.map(item => {
+    const pDate = new Date(item.purchase_date);
+    pDate.setHours(0,0,0,0);
+    const expDate = new Date(pDate);
+    if (item.warranty_unit === 'months') {
+      expDate.setMonth(expDate.getMonth() + Number(item.warranty_duration));
+    } else {
+      expDate.setFullYear(expDate.getFullYear() + Number(item.warranty_duration));
+    }
+
+    const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+    let statusBadge = '';
+
+    if (diffDays < 0) {
+      statusBadge = `<span style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">Expired (${Math.abs(diffDays)}d ago)</span>`;
+    } else if (diffDays <= 30) {
+      statusBadge = `<span style="background: rgba(250, 204, 21, 0.2); color: #facc15; border: 1px solid #facc15; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">Expires in ${diffDays}d</span>`;
+    } else {
+      const monthsLeft = Math.floor(diffDays / 30);
+      statusBadge = `<span style="background: rgba(74, 222, 128, 0.2); color: #4ade80; border: 1px solid #4ade80; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">Active (${monthsLeft > 0 ? monthsLeft + ' mos' : diffDays + 'd'} left)</span>`;
+    }
+
+    const safeReceiptUrl = item.receipt_url ? item.receipt_url.replace(/'/g, "\\'") : '';
+    const safeItemName = (item.item_name || 'Receipt').replace(/'/g, "\\'");
+
+    return `
+      <div style="background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <h4 style="margin: 0; color: #f8fafc; font-size: 1.05rem;">${item.item_name}</h4>
+            <div style="display: flex; gap: 5px;">
+              <button onclick="editWarranty('${item.id}')" style="background:none; border:none; color: #38bdf8; cursor:pointer; font-size:0.85rem;" title="Edit">&#x270F;</button>
+              <button onclick="deleteWarranty('${item.id}')" style="background:none; border:none; color: #ef4444; cursor:pointer; font-size:0.85rem;" title="Delete">&times;</button>
+            </div>
+          </div>
+          <div style="margin-bottom: 8px;">${statusBadge}</div>
+          <div style="font-size: 0.8rem; color: #94a3b8; line-height: 1.5;">
+            <div>Purchased: <strong style="color:#cbd5e1;">${item.purchase_date}</strong></div>
+            <div>Warranty: <strong style="color:#cbd5e1;">${item.warranty_duration} ${item.warranty_unit || 'years'}</strong></div>
+            <div>Expires: <strong style="color:#cbd5e1;">${expDate.toISOString().split('T')[0]}</strong></div>
+            ${item.notes ? `<div style="margin-top: 4px; font-style: italic; color: #cbd5e1;">${item.notes}</div>` : ''}
+          </div>
+        </div>
+
+        <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); display:flex; gap:8px;">
+          ${item.receipt_url ? `
+            <button onclick="viewReceipt('${safeReceiptUrl}', '${safeItemName}')" style="flex:1; padding: 6px 10px; background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; color: #38bdf8; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold;">
+              &#x1F9FE; View Receipt
+            </button>
+          ` : `
+            <span style="flex:1; font-size: 0.8rem; color: #64748b; font-style: italic; text-align: center; padding: 6px 0;">No receipt attached</span>
+          `}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Receipt Modal Controls
+function viewReceipt(url, itemName) {
+  const modal = document.getElementById('receiptModal');
+  const title = document.getElementById('receiptModalTitle');
+  const body = document.getElementById('receiptModalBody');
+  if (!modal || !body) return;
+
+  title.innerText = `&#x1F9FE; Receipt: ${itemName}`;
+  const isPdf = url.toLowerCase().endsWith('.pdf');
+
+  if (isPdf) {
+    body.innerHTML = `
+      <p style="color:#cbd5e1; margin-bottom:15px;">PDF document attached.</p>
+      <a href="${url}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding: 10px 20px; background: #0284c7; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">
+        &#x1F4D6; Open PDF in New Tab
+      </a>
+    `;
+  } else {
+    body.innerHTML = `
+      <img src="${url}" alt="Receipt" style="max-width: 100%; max-height: 70vh; border-radius: 6px; object-fit: contain;">
+      <div style="margin-top:10px;">
+        <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; font-size: 0.85rem; text-decoration: underline;">Open original image</a>
+      </div>
+    `;
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeReceiptModal() {
+  const modal = document.getElementById('receiptModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// Form Submission (Add / Edit)
+const warrantyForm = document.getElementById('warrantyForm');
+if (warrantyForm) {
+  warrantyForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('warrItemName').value.trim();
+    const date = document.getElementById('warrPurchaseDate').value;
+    const duration = document.getElementById('warrDuration').value;
+    const unit = document.getElementById('warrDurationUnit').value;
+    const notes = document.getElementById('warrNotes').value.trim();
+    const fileInput = document.getElementById('warrReceiptFile');
+    const submitBtn = document.getElementById('warrSubmitBtn');
+
+    if (!name || !date || !duration) return;
+
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Saving...';
+
+    try {
+      let receiptUrl = null;
+
+      // Handle file upload to Supabase storage if selected
+      if (fileInput && fileInput.files && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.floor(Math.random() * 10000)}.${fileExt}`;
+        const filePath = `receipts/${fileName}`;
+
+        const { data: uploadData, error: uploadError } = await supabaseClient
+          .storage
+          .from('receipts')
+          .upload(filePath, file);
+
+        if (uploadError) {
+          alert('Failed to upload receipt: ' + uploadError.message);
+          submitBtn.disabled = false;
+          submitBtn.innerText = editWarrantyId ? 'Update Warranty' : 'Add Warranty';
+          return;
+        }
+
+        const { data: { publicUrl } } = supabaseClient
+          .storage
+          .from('receipts')
+          .getPublicUrl(filePath);
+
+        receiptUrl = publicUrl;
+      }
+
+      if (editWarrantyId) {
+        const updatePayload = {
+          item_name: name,
+          purchase_date: date,
+          warranty_duration: parseFloat(duration),
+          warranty_unit: unit,
+          notes: notes
+        };
+        if (receiptUrl) updatePayload.receipt_url = receiptUrl;
+
+        const { error } = await supabaseClient.from('warranties').update(updatePayload).eq('id', editWarrantyId);
+        if (!error) {
+          await fetchWarranties();
+          cancelEditWarranty();
+          renderWarranties();
+        } else {
+          alert(error.message);
+        }
+      } else {
+        const newId = Math.floor(Math.random() * 2100000000).toString();
+        const { error } = await supabaseClient.from('warranties').insert([{
+          id: newId,
+          item_name: name,
+          purchase_date: date,
+          warranty_duration: parseFloat(duration),
+          warranty_unit: unit,
+          notes: notes,
+          receipt_url: receiptUrl
+        }]);
+
+        if (!error) {
+          await fetchWarranties();
+          warrantyForm.reset();
+          renderWarranties();
+        } else {
+          alert(error.message);
+        }
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerText = editWarrantyId ? 'Update Warranty' : 'Add Warranty';
+    }
+  });
+}
+
+function editWarranty(id) {
+  const item = warrantyItems.find(x => String(x.id) === String(id));
+  if (!item) return;
+
+  editWarrantyId = id;
+  document.getElementById('warrItemName').value = item.item_name || '';
+  document.getElementById('warrPurchaseDate').value = item.purchase_date || '';
+  document.getElementById('warrDuration').value = item.warranty_duration || '';
+  document.getElementById('warrDurationUnit').value = item.warranty_unit || 'years';
+  document.getElementById('warrNotes').value = item.notes || '';
+
+  document.getElementById('warrSubmitBtn').innerText = 'Update Warranty';
+  document.getElementById('warrCancelBtn').style.display = 'inline-block';
+}
+
+function cancelEditWarranty() {
+  editWarrantyId = null;
+  if (warrantyForm) warrantyForm.reset();
+  document.getElementById('warrSubmitBtn').innerText = 'Add Warranty';
+  document.getElementById('warrCancelBtn').style.display = 'none';
+}
+
+async function deleteWarranty(id) {
+  if (!confirm('Are you sure you want to delete this warranty item?')) return;
+  const { error } = await supabaseClient.from('warranties').delete().eq('id', id);
+  if (!error) {
+    await fetchWarranties();
+    renderWarranties();
+  } else {
+    alert(error.message);
   }
 }
