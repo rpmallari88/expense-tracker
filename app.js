@@ -2005,6 +2005,51 @@ function renderCarServices() {
   }).join('');
 }
 
+// Set default fuel date to today on load
+const fuelDateInput = document.getElementById('fuelDate');
+if (fuelDateInput && !fuelDateInput.value) {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  fuelDateInput.value = d.toISOString().split('T')[0];
+}
+
+// Auto-detect location via phone/browser GPS
+async function detectFuelLocation() {
+  const stationInput = document.getElementById('fuelStation');
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+
+  const prevText = stationInput.placeholder;
+  stationInput.placeholder = 'Detecting location via GPS...';
+
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    try {
+      const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+      const data = await resp.json();
+      if (data && data.address) {
+        const addr = data.address;
+        const place = addr.amenity || addr.fuel || addr.road || '';
+        const city = addr.city || addr.town || addr.village || addr.suburb || addr.county || 'Bahrain';
+        const formatted = place ? `${place}, ${city}` : city;
+        stationInput.value = formatted;
+      } else {
+        stationInput.value = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+      }
+    } catch (e) {
+      stationInput.value = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    } finally {
+      stationInput.placeholder = prevText;
+    }
+  }, (err) => {
+    alert('Unable to retrieve location: ' + err.message);
+    stationInput.placeholder = prevText;
+  }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
 // Auto-calculate liters when Price/L or Total Paid changes
 const fuelUnitPriceInput = document.getElementById('fuelUnitPrice');
 const fuelCostInput = document.getElementById('fuelCost');
@@ -2091,6 +2136,9 @@ if (fuelForm) {
           await fetchFuelLogs();
           fuelForm.reset();
           if (fuelLitresInput) fuelLitresInput.value = '';
+          const d = new Date();
+          d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+          document.getElementById('fuelDate').value = d.toISOString().split('T')[0];
         } else {
           alert(error.message);
         }
@@ -2109,7 +2157,7 @@ function editFuel(id) {
   if (!item) return;
 
   editFuelId = id;
-  const dStr = (item.date || '').substring(0, 16);
+  const dStr = (item.date || '').substring(0, 10);
   document.getElementById('fuelDate').value = dStr;
   document.getElementById('fuelOdo').value = item.odometer || '';
   document.getElementById('fuelUnitPrice').value = item.price_per_litre || (item.fuel_litres > 0 ? (item.total_cost / item.fuel_litres).toFixed(3) : '');
