@@ -54,6 +54,7 @@
     <button class="tab-btn" onclick="switchTab('bbkTab', this)">&#x1F6A8; BBK Emergency</button>
     <button class="tab-btn" onclick="switchTab('bbkSavingsTab', this)">&#x1F4B0; BBK Savings</button>
     <button class="tab-btn" onclick="switchTab('batelcoTab', this)">&#x1F4F1; Batelco</button>
+    <button class="tab-btn" onclick="switchTab('carTab', this)">&#x1F697; My Car</button>
     <button class="tab-btn" onclick="switchTab('maintenanceTab', this)">&#x1F527; Maintenance</button>
     <button class="tab-btn" onclick="switchTab('historyTab', this)">&#x1F552; History</button>
     <button class="tab-btn" onclick="switchTab('reportsTab', this)">&#x1F4CA; Reports</button>
@@ -644,6 +645,106 @@
       
       <div id="warrantyListContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
         <!-- Warranty cards render here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 10: CAR / FUELIO TRACKER -->
+  <div id="carTab" class="tab-content">
+    <!-- Vehicle Summary Header -->
+    <div style="background: rgba(255, 255, 255, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.35); margin-bottom: 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+        <div>
+          <h3 style="margin:0; color:#38bdf8;">&#x1F697; Mitsubishi Xpander Cross (2024)</h3>
+          <span style="color:#cbd5e1; font-size:0.85rem;">Plate: 682316 &bull; Fuelio Car Log</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button id="carSubTabFuelBtn" onclick="switchCarSubTab('fuel')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #38bdf8; background: #38bdf8; color: #000; font-weight: bold; cursor: pointer;">&#x26FD; Fuel Log</button>
+          <button id="carSubTabServiceBtn" onclick="switchCarSubTab('service')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #facc15; background: rgba(250, 204, 21, 0.15); color: #facc15; font-weight: bold; cursor: pointer;">&#x1F527; Services & Costs</button>
+        </div>
+      </div>
+
+      <!-- Quick Metrics Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
+        <div style="background: rgba(0,0,0,0.4); padding: 10px; border-radius: 6px; text-align: center;">
+          <div style="font-size: 0.75rem; color: #94a3b8;">LATEST ODO</div>
+          <div id="carLatestOdo" style="font-size: 1.15rem; font-weight: bold; color: #38bdf8;">-- km</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 10px; border-radius: 6px; text-align: center;">
+          <div style="font-size: 0.75rem; color: #94a3b8;">AVG FUEL ECONOMY</div>
+          <div id="carAvgKml" style="font-size: 1.15rem; font-weight: bold; color: #4ade80;">-- km/L</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 10px; border-radius: 6px; text-align: center;">
+          <div style="font-size: 0.75rem; color: #94a3b8;">TOTAL GAS SPENT</div>
+          <div id="carTotalFuelSpent" style="font-size: 1.15rem; font-weight: bold; color: #facc15;">-- BHD</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 10px; border-radius: 6px; text-align: center;">
+          <div style="font-size: 0.75rem; color: #94a3b8;">TOTAL SERVICES</div>
+          <div id="carTotalServiceSpent" style="font-size: 1.15rem; font-weight: bold; color: #fb7185;">-- BHD</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAR SUB-SECTION 1: FUEL LOG -->
+    <div id="carFuelSection">
+      <!-- Add Fuel Log Form -->
+      <form id="fuelForm" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.25);">
+        <h4 style="margin:0 0 5px 0; color:#38bdf8;">&#x26FD; Record Fill-up</h4>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <input type="datetime-local" id="fuelDate" required style="flex:1; min-width: 170px;">
+          <input type="number" step="0.1" id="fuelOdo" placeholder="Odometer (km)" required style="flex:1; min-width: 130px;">
+          <input type="number" step="0.001" id="fuelLitres" placeholder="Liters (L)" required style="flex:1; min-width: 100px;">
+          <input type="number" step="0.001" id="fuelCost" placeholder="Total (BHD)" required style="flex:1; min-width: 110px;">
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <input type="text" id="fuelStation" placeholder="Station / City (e.g. Bapco Manama, Tubli)" style="flex:2; min-width: 180px;">
+          <label style="display:flex; align-items:center; gap:5px; color:#cbd5e1; font-size:0.85rem; cursor:pointer;">
+            <input type="checkbox" id="fuelIsFull" checked> Full Tank
+          </label>
+          <button type="submit" class="submit-btn" id="fuelSubmitBtn" style="margin:0; width:auto; padding: 8px 20px; background:#0284c7;">Add Fill-up</button>
+          <button type="button" class="cancel-btn" id="fuelCancelBtn" onclick="cancelEditFuel()" style="display: none; width: auto; margin:0; padding: 8px 16px;">Cancel</button>
+        </div>
+      </form>
+
+      <!-- Fuel Logs List -->
+      <div id="fuelListContainer" style="display: flex; flex-direction: column; gap: 10px;">
+        <!-- Fuel log cards render here -->
+      </div>
+    </div>
+
+    <!-- CAR SUB-SECTION 2: SERVICES & EXPENSES -->
+    <div id="carServiceSection" style="display:none;">
+      <!-- Add Service Form -->
+      <form id="serviceForm" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; border: 1px solid rgba(250, 204, 21, 0.25);">
+        <h4 style="margin:0 0 5px 0; color:#facc15;">&#x1F527; Record Service or Car Expense</h4>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <input type="text" id="serviceTitle" placeholder="Service Title (e.g. 50,000km Service, Brake Discs)" required style="flex:2; min-width: 180px;">
+          <input type="date" id="serviceDate" required style="flex:1; min-width: 130px;">
+          <input type="number" step="1" id="serviceOdo" placeholder="Odometer (km)" style="flex:1; min-width: 120px;">
+          <input type="number" step="0.001" id="serviceCost" placeholder="Cost (BHD)" required style="flex:1; min-width: 110px;">
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <select id="serviceCategory" style="flex:1; min-width: 120px; background: #0f172a; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.2); padding: 8px; border-radius: 6px;">
+            <option value="Service">Service</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Insurance">Insurance</option>
+            <option value="Registration">Registration</option>
+            <option value="Wash">Wash</option>
+            <option value="Accessories">Accessories</option>
+          </select>
+          <input type="text" id="serviceNotes" placeholder="Notes (details, garage name, parts)" style="flex:2; min-width: 180px;">
+          <div style="flex:1; min-width: 160px; display:flex; align-items:center; gap:6px;">
+            <label for="serviceReceiptFile" style="font-size:0.85rem; color:#cbd5e1; white-space:nowrap;">&#x1F4F7; Receipt:</label>
+            <input type="file" id="serviceReceiptFile" accept="image/*,application/pdf" style="font-size:0.8rem; color:#cbd5e1;">
+          </div>
+          <button type="submit" class="submit-btn" id="serviceSubmitBtn" style="margin:0; width:auto; padding: 8px 20px; background:#d97706;">Add Service</button>
+          <button type="button" class="cancel-btn" id="serviceCancelBtn" onclick="cancelEditService()" style="display: none; width: auto; margin:0; padding: 8px 16px;">Cancel</button>
+        </div>
+      </form>
+
+      <!-- Services List -->
+      <div id="serviceListContainer" style="display: flex; flex-direction: column; gap: 10px;">
+        <!-- Service cards render here -->
       </div>
     </div>
   </div>

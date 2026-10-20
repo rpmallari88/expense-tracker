@@ -87,6 +87,8 @@ async function checkAuthSession() {
     await fetchCelebrations();
     await fetchTrackerItems();
     await fetchWarranties();
+    await fetchFuelLogs();
+    await fetchCarServices();
     await fetchHistory();
 
     syncAndApplyFilters(currentYearMonth);
@@ -204,6 +206,11 @@ function switchTab(tabId, btnElement) {
   if (tabId === 'maintenanceTab') {
     if (typeof renderMaintenanceTab === 'function') renderMaintenanceTab();
     if (typeof renderWarranties === 'function') renderWarranties();
+  }
+  if (tabId === 'carTab') {
+    if (typeof renderFuelLogs === 'function') renderFuelLogs();
+    if (typeof renderCarServices === 'function') renderCarServices();
+    if (typeof updateCarMetrics === 'function') updateCarMetrics();
   }
 }
 
@@ -1836,3 +1843,410 @@ async function deleteWarranty(id) {
     alert(error.message);
   }
 }
+
+// ==========================================
+// 🚗 CAR / FUELIO TRACKER LOGIC
+// ==========================================
+let fuelLogs = [];
+let carServices = [];
+let editFuelId = null;
+let editServiceId = null;
+
+function switchCarSubTab(sub) {
+  const fuelBtn = document.getElementById('carSubTabFuelBtn');
+  const srvBtn = document.getElementById('carSubTabServiceBtn');
+  const fuelSec = document.getElementById('carFuelSection');
+  const srvSec = document.getElementById('carServiceSection');
+
+  if (sub === 'fuel') {
+    if (fuelBtn) { fuelBtn.style.background = '#38bdf8'; fuelBtn.style.color = '#000'; }
+    if (srvBtn) { srvBtn.style.background = 'rgba(250, 204, 21, 0.15)'; srvBtn.style.color = '#facc15'; }
+    if (fuelSec) fuelSec.style.display = 'block';
+    if (srvSec) srvSec.style.display = 'none';
+    renderFuelLogs();
+  } else {
+    if (srvBtn) { srvBtn.style.background = '#facc15'; srvBtn.style.color = '#000'; }
+    if (fuelBtn) { fuelBtn.style.background = 'rgba(56, 189, 248, 0.15)'; fuelBtn.style.color = '#38bdf8'; }
+    if (fuelSec) fuelSec.style.display = 'none';
+    if (srvSec) srvSec.style.display = 'block';
+    renderCarServices();
+  }
+}
+
+async function fetchFuelLogs() {
+  const { data, error } = await supabaseClient.from('fuel_logs').select('*').order('odometer', { ascending: false });
+  if (data) {
+    fuelLogs = data;
+    updateCarMetrics();
+    renderFuelLogs();
+  }
+}
+
+async function fetchCarServices() {
+  const { data, error } = await supabaseClient.from('car_services').select('*').order('date', { ascending: false });
+  if (data) {
+    carServices = data;
+    updateCarMetrics();
+    renderCarServices();
+  }
+}
+
+function updateCarMetrics() {
+  const latestOdoEl = document.getElementById('carLatestOdo');
+  const avgKmlEl = document.getElementById('carAvgKml');
+  const totalFuelEl = document.getElementById('carTotalFuelSpent');
+  const totalServiceEl = document.getElementById('carTotalServiceSpent');
+
+  let maxOdo = 0;
+  let totalFuelCost = 0;
+  let kmlSum = 0;
+  let kmlCount = 0;
+
+  fuelLogs.forEach(f => {
+    if (f.odometer && f.odometer > maxOdo) maxOdo = f.odometer;
+    totalFuelCost += Number(f.total_cost || 0);
+    if (f.kml && f.kml > 0 && f.kml < 50) {
+      kmlSum += Number(f.kml);
+      kmlCount++;
+    }
+  });
+
+  carServices.forEach(s => {
+    if (s.odometer && s.odometer > maxOdo) maxOdo = s.odometer;
+  });
+
+  const totalServiceCost = carServices.reduce((sum, s) => sum + Number(s.cost || 0), 0);
+
+  if (latestOdoEl) latestOdoEl.innerText = maxOdo > 0 ? `${maxOdo.toLocaleString()} km` : '-- km';
+  if (avgKmlEl) avgKmlEl.innerText = kmlCount > 0 ? `${(kmlSum / kmlCount).toFixed(2)} km/L` : '-- km/L';
+  if (totalFuelEl) totalFuelEl.innerText = `${totalFuelCost.toFixed(3)} BHD`;
+  if (totalServiceEl) totalServiceEl.innerText = `${totalServiceCost.toFixed(3)} BHD`;
+}
+
+function renderFuelLogs() {
+  const container = document.getElementById('fuelListContainer');
+  if (!container) return;
+
+  if (fuelLogs.length === 0) {
+    container.innerHTML = '<p style="color:#cbd5e1; text-align:center; padding:20px;">No fill-ups logged yet.</p>';
+    return;
+  }
+
+  container.innerHTML = fuelLogs.map((log, idx) => {
+    const kmlDisplay = log.kml ? `<span style="background:rgba(74, 222, 128, 0.2); color:#4ade80; border:1px solid #4ade80; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">${Number(log.kml).toFixed(2)} km/L</span>` : '';
+    const dateFormatted = (log.date || '').replace('T', ' ').substring(0, 16);
+
+    return `
+      <div style="background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 12px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <strong style="color:#f8fafc; font-size:1.05rem;">${Number(log.odometer).toLocaleString()} km</strong>
+            ${kmlDisplay}
+            ${log.is_full_tank ? '<span style="font-size:0.7rem; color:#94a3b8; background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">Full</span>' : ''}
+          </div>
+          <div style="font-size:0.8rem; color:#94a3b8;">
+            <span>${dateFormatted}</span>
+            ${log.station_city ? ` &bull; <span>${log.station_city}</span>` : ''}
+          </div>
+          <div style="font-size:0.8rem; color:#cbd5e1;">
+            ${Number(log.fuel_litres).toFixed(2)} L pumped ${log.price_per_litre ? `(@ ${Number(log.price_per_litre).toFixed(3)} BHD/L)` : ''}
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:12px;">
+          <strong style="font-size:1.15rem; color:#facc15;">${Number(log.total_cost).toFixed(3)} BHD</strong>
+          <div style="display:flex; gap:6px;">
+            <button onclick="editFuel('${log.id}')" style="background:none; border:none; color:#38bdf8; cursor:pointer; font-weight:bold; font-size:0.9rem;" title="Edit">&#x270F;</button>
+            <button onclick="deleteFuel('${log.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold; font-size:1rem;" title="Delete">&times;</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderCarServices() {
+  const container = document.getElementById('serviceListContainer');
+  if (!container) return;
+
+  if (carServices.length === 0) {
+    container.innerHTML = '<p style="color:#cbd5e1; text-align:center; padding:20px;">No car services logged yet.</p>';
+    return;
+  }
+
+  container.innerHTML = carServices.map(srv => {
+    const odoDisplay = srv.odometer ? `@ ${Number(srv.odometer).toLocaleString()} km` : '';
+    const safeReceipt = srv.receipt_url ? srv.receipt_url.replace(/'/g, "\\'") : '';
+    const safeTitle = (srv.title || 'Service').replace(/'/g, "\\'");
+
+    return `
+      <div style="background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(250, 204, 21, 0.25); border-radius: 8px; padding: 12px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <strong style="color:#f8fafc; font-size:1.05rem;">${srv.title}</strong>
+            <span style="background:rgba(250, 204, 21, 0.2); color:#facc15; border:1px solid #facc15; padding:2px 8px; border-radius:12px; font-size:0.75rem;">${srv.category || 'Service'}</span>
+          </div>
+          <div style="font-size:0.8rem; color:#94a3b8;">
+            <span>${srv.date}</span> ${odoDisplay ? `&bull; <span>${odoDisplay}</span>` : ''}
+          </div>
+          ${srv.notes ? `<div style="font-size:0.8rem; color:#cbd5e1; font-style:italic;">${srv.notes}</div>` : ''}
+        </div>
+
+        <div style="display:flex; align-items:center; gap:12px;">
+          <strong style="font-size:1.15rem; color:#fb7185;">${Number(srv.cost).toFixed(3)} BHD</strong>
+          <div style="display:flex; gap:6px;">
+            ${srv.receipt_url ? `<button onclick="viewReceipt('${safeReceipt}', '${safeTitle}')" style="background:rgba(56, 189, 248, 0.15); border:1px solid #38bdf8; color:#38bdf8; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:0.8rem;">&#x1F9FE; Receipt</button>` : ''}
+            <button onclick="editService('${srv.id}')" style="background:none; border:none; color:#38bdf8; cursor:pointer; font-weight:bold; font-size:0.9rem;" title="Edit">&#x270F;</button>
+            <button onclick="deleteService('${srv.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold; font-size:1rem;" title="Delete">&times;</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Fuel Form Submission
+const fuelForm = document.getElementById('fuelForm');
+if (fuelForm) {
+  fuelForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const dateVal = document.getElementById('fuelDate').value;
+    const odoVal = parseFloat(document.getElementById('fuelOdo').value);
+    const litresVal = parseFloat(document.getElementById('fuelLitres').value);
+    const costVal = parseFloat(document.getElementById('fuelCost').value);
+    const stationVal = document.getElementById('fuelStation').value.trim();
+    const isFullVal = document.getElementById('fuelIsFull').checked;
+    const submitBtn = document.getElementById('fuelSubmitBtn');
+
+    if (!dateVal || isNaN(odoVal) || isNaN(litresVal) || isNaN(costVal)) return;
+
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Saving...';
+
+    const pricePerLitre = litresVal > 0 ? (costVal / litresVal) : null;
+
+    // Calculate km/L against the previous fillup if available
+    let calculatedKml = null;
+    const sorted = [...fuelLogs].sort((a,b) => b.odometer - a.odometer);
+    const prev = sorted.find(x => x.odometer < odoVal);
+    if (prev && litresVal > 0) {
+      calculatedKml = parseFloat(((odoVal - prev.odometer) / litresVal).toFixed(2));
+    }
+
+    try {
+      if (editFuelId) {
+        const { error } = await supabaseClient.from('fuel_logs').update({
+          date: dateVal,
+          odometer: odoVal,
+          fuel_litres: litresVal,
+          total_cost: costVal,
+          price_per_litre: pricePerLitre,
+          kml: calculatedKml,
+          station_city: stationVal,
+          is_full_tank: isFullVal
+        }).eq('id', editFuelId);
+
+        if (!error) {
+          await fetchFuelLogs();
+          cancelEditFuel();
+        } else {
+          alert(error.message);
+        }
+      } else {
+        const newId = Math.floor(Math.random() * 2100000000).toString();
+        const { error } = await supabaseClient.from('fuel_logs').insert([{
+          id: newId,
+          date: dateVal,
+          odometer: odoVal,
+          fuel_litres: litresVal,
+          total_cost: costVal,
+          price_per_litre: pricePerLitre,
+          kml: calculatedKml,
+          station_city: stationVal,
+          is_full_tank: isFullVal
+        }]);
+
+        if (!error) {
+          await fetchFuelLogs();
+          fuelForm.reset();
+        } else {
+          alert(error.message);
+        }
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerText = editFuelId ? 'Update Fill-up' : 'Add Fill-up';
+    }
+  });
+}
+
+function editFuel(id) {
+  const item = fuelLogs.find(x => String(x.id) === String(id));
+  if (!item) return;
+
+  editFuelId = id;
+  const dStr = (item.date || '').substring(0, 16);
+  document.getElementById('fuelDate').value = dStr;
+  document.getElementById('fuelOdo').value = item.odometer || '';
+  document.getElementById('fuelLitres').value = item.fuel_litres || '';
+  document.getElementById('fuelCost').value = item.total_cost || '';
+  document.getElementById('fuelStation').value = item.station_city || '';
+  document.getElementById('fuelIsFull').checked = (item.is_full_tank !== false);
+
+  document.getElementById('fuelSubmitBtn').innerText = 'Update Fill-up';
+  document.getElementById('fuelCancelBtn').style.display = 'inline-block';
+}
+
+function cancelEditFuel() {
+  editFuelId = null;
+  if (fuelForm) fuelForm.reset();
+  document.getElementById('fuelSubmitBtn').innerText = 'Add Fill-up';
+  document.getElementById('fuelCancelBtn').style.display = 'none';
+}
+
+async function deleteFuel(id) {
+  const item = fuelLogs.find(x => String(x.id) === String(id));
+  const desc = item ? `${item.odometer} km (${item.total_cost} BHD)` : 'this fill-up';
+  if (!confirm(`Are you sure you want to delete fill-up ${desc}?`)) return;
+
+  const { error } = await supabaseClient.from('fuel_logs').delete().eq('id', id);
+  if (!error) {
+    await fetchFuelLogs();
+  } else {
+    alert(error.message);
+  }
+}
+
+// Service Form Submission
+const serviceForm = document.getElementById('serviceForm');
+if (serviceForm) {
+  serviceForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const titleVal = document.getElementById('serviceTitle').value.trim();
+    const dateVal = document.getElementById('serviceDate').value;
+    const odoVal = document.getElementById('serviceOdo').value ? parseFloat(document.getElementById('serviceOdo').value) : null;
+    const costVal = parseFloat(document.getElementById('serviceCost').value);
+    const catVal = document.getElementById('serviceCategory').value;
+    const notesVal = document.getElementById('serviceNotes').value.trim();
+    const fileInput = document.getElementById('serviceReceiptFile');
+    const submitBtn = document.getElementById('serviceSubmitBtn');
+
+    if (!titleVal || !dateVal || isNaN(costVal)) return;
+
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Saving...';
+
+    try {
+      let receiptUrl = null;
+
+      if (fileInput && fileInput.files && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_car_${Math.floor(Math.random() * 10000)}.${fileExt}`;
+        const filePath = `receipts/${fileName}`;
+
+        const { data: uploadData, error: uploadError } = await supabaseClient
+          .storage
+          .from('receipts')
+          .upload(filePath, file);
+
+        if (uploadError) {
+          alert('Failed to upload receipt: ' + uploadError.message);
+          submitBtn.disabled = false;
+          submitBtn.innerText = editServiceId ? 'Update Service' : 'Add Service';
+          return;
+        }
+
+        const { data: { publicUrl } } = supabaseClient
+          .storage
+          .from('receipts')
+          .getPublicUrl(filePath);
+
+        receiptUrl = publicUrl;
+      }
+
+      if (editServiceId) {
+        const updatePayload = {
+          title: titleVal,
+          date: dateVal,
+          odometer: odoVal,
+          cost: costVal,
+          category: catVal,
+          notes: notesVal
+        };
+        if (receiptUrl) updatePayload.receipt_url = receiptUrl;
+
+        const { error } = await supabaseClient.from('car_services').update(updatePayload).eq('id', editServiceId);
+        if (!error) {
+          await fetchCarServices();
+          cancelEditService();
+        } else {
+          alert(error.message);
+        }
+      } else {
+        const newId = Math.floor(Math.random() * 2100000000).toString();
+        const { error } = await supabaseClient.from('car_services').insert([{
+          id: newId,
+          title: titleVal,
+          date: dateVal,
+          odometer: odoVal,
+          cost: costVal,
+          category: catVal,
+          notes: notesVal,
+          receipt_url: receiptUrl
+        }]);
+
+        if (!error) {
+          await fetchCarServices();
+          serviceForm.reset();
+        } else {
+          alert(error.message);
+        }
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerText = editServiceId ? 'Update Service' : 'Add Service';
+    }
+  });
+}
+
+function editService(id) {
+  const item = carServices.find(x => String(x.id) === String(id));
+  if (!item) return;
+
+  editServiceId = id;
+  document.getElementById('serviceTitle').value = item.title || '';
+  document.getElementById('serviceDate').value = item.date || '';
+  document.getElementById('serviceOdo').value = item.odometer || '';
+  document.getElementById('serviceCost').value = item.cost || '';
+  document.getElementById('serviceCategory').value = item.category || 'Service';
+  document.getElementById('serviceNotes').value = item.notes || '';
+
+  document.getElementById('serviceSubmitBtn').innerText = 'Update Service';
+  document.getElementById('serviceCancelBtn').style.display = 'inline-block';
+}
+
+function cancelEditService() {
+  editServiceId = null;
+  if (serviceForm) serviceForm.reset();
+  document.getElementById('serviceSubmitBtn').innerText = 'Add Service';
+  document.getElementById('serviceCancelBtn').style.display = 'none';
+}
+
+async function deleteService(id) {
+  const item = carServices.find(x => String(x.id) === String(id));
+  const desc = item ? `${item.title} (${item.cost} BHD)` : 'this service';
+  if (!confirm(`Are you sure you want to delete ${desc}?`)) return;
+
+  const { error } = await supabaseClient.from('car_services').delete().eq('id', id);
+  if (!error) {
+    await fetchCarServices();
+  } else {
+    alert(error.message);
+  }
+}
+
