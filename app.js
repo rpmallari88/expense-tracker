@@ -2005,6 +2005,26 @@ function renderCarServices() {
   }).join('');
 }
 
+// Auto-calculate liters when Price/L or Total Paid changes
+const fuelUnitPriceInput = document.getElementById('fuelUnitPrice');
+const fuelCostInput = document.getElementById('fuelCost');
+const fuelLitresInput = document.getElementById('fuelLitres');
+
+function autoCalcLitres() {
+  const p = parseFloat(fuelUnitPriceInput.value);
+  const c = parseFloat(fuelCostInput.value);
+  if (p > 0 && c > 0) {
+    fuelLitresInput.value = (c / p).toFixed(3);
+  } else {
+    fuelLitresInput.value = '';
+  }
+}
+
+if (fuelUnitPriceInput && fuelCostInput) {
+  fuelUnitPriceInput.addEventListener('input', autoCalcLitres);
+  fuelCostInput.addEventListener('input', autoCalcLitres);
+}
+
 // Fuel Form Submission
 const fuelForm = document.getElementById('fuelForm');
 if (fuelForm) {
@@ -2012,18 +2032,19 @@ if (fuelForm) {
     e.preventDefault();
     const dateVal = document.getElementById('fuelDate').value;
     const odoVal = parseFloat(document.getElementById('fuelOdo').value);
-    const litresVal = parseFloat(document.getElementById('fuelLitres').value);
+    const unitPriceVal = parseFloat(document.getElementById('fuelUnitPrice').value);
     const costVal = parseFloat(document.getElementById('fuelCost').value);
     const stationVal = document.getElementById('fuelStation').value.trim();
     const isFullVal = document.getElementById('fuelIsFull').checked;
     const submitBtn = document.getElementById('fuelSubmitBtn');
 
-    if (!dateVal || isNaN(odoVal) || isNaN(litresVal) || isNaN(costVal)) return;
+    if (!dateVal || isNaN(odoVal) || isNaN(unitPriceVal) || isNaN(costVal)) return;
+
+    // Calculate Liters automatically
+    const litresVal = unitPriceVal > 0 ? parseFloat((costVal / unitPriceVal).toFixed(3)) : 0;
 
     submitBtn.disabled = true;
     submitBtn.innerText = 'Saving...';
-
-    const pricePerLitre = litresVal > 0 ? (costVal / litresVal) : null;
 
     // Calculate km/L against the previous fillup if available
     let calculatedKml = null;
@@ -2040,7 +2061,7 @@ if (fuelForm) {
           odometer: odoVal,
           fuel_litres: litresVal,
           total_cost: costVal,
-          price_per_litre: pricePerLitre,
+          price_per_litre: unitPriceVal,
           kml: calculatedKml,
           station_city: stationVal,
           is_full_tank: isFullVal
@@ -2060,7 +2081,7 @@ if (fuelForm) {
           odometer: odoVal,
           fuel_litres: litresVal,
           total_cost: costVal,
-          price_per_litre: pricePerLitre,
+          price_per_litre: unitPriceVal,
           kml: calculatedKml,
           station_city: stationVal,
           is_full_tank: isFullVal
@@ -2069,6 +2090,7 @@ if (fuelForm) {
         if (!error) {
           await fetchFuelLogs();
           fuelForm.reset();
+          if (fuelLitresInput) fuelLitresInput.value = '';
         } else {
           alert(error.message);
         }
@@ -2090,8 +2112,9 @@ function editFuel(id) {
   const dStr = (item.date || '').substring(0, 16);
   document.getElementById('fuelDate').value = dStr;
   document.getElementById('fuelOdo').value = item.odometer || '';
-  document.getElementById('fuelLitres').value = item.fuel_litres || '';
+  document.getElementById('fuelUnitPrice').value = item.price_per_litre || (item.fuel_litres > 0 ? (item.total_cost / item.fuel_litres).toFixed(3) : '');
   document.getElementById('fuelCost').value = item.total_cost || '';
+  document.getElementById('fuelLitres').value = item.fuel_litres || '';
   document.getElementById('fuelStation').value = item.station_city || '';
   document.getElementById('fuelIsFull').checked = (item.is_full_tank !== false);
 
@@ -2102,6 +2125,7 @@ function editFuel(id) {
 function cancelEditFuel() {
   editFuelId = null;
   if (fuelForm) fuelForm.reset();
+  if (fuelLitresInput) fuelLitresInput.value = '';
   document.getElementById('fuelSubmitBtn').innerText = 'Add Fill-up';
   document.getElementById('fuelCancelBtn').style.display = 'none';
 }

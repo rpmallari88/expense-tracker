@@ -693,8 +693,9 @@
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <input type="datetime-local" id="fuelDate" required style="flex:1; min-width: 170px;">
           <input type="number" step="0.1" id="fuelOdo" placeholder="Odometer (km)" required style="flex:1; min-width: 130px;">
-          <input type="number" step="0.001" id="fuelLitres" placeholder="Liters (L)" required style="flex:1; min-width: 100px;">
-          <input type="number" step="0.001" id="fuelCost" placeholder="Total (BHD)" required style="flex:1; min-width: 110px;">
+          <input type="number" step="0.001" id="fuelUnitPrice" placeholder="Price / Litre (e.g. 0.200)" required style="flex:1; min-width: 130px;">
+          <input type="number" step="0.001" id="fuelCost" placeholder="Total Paid (BHD)" required style="flex:1; min-width: 120px;">
+          <input type="number" step="0.001" id="fuelLitres" placeholder="Liters (Auto)" readonly style="flex:1; min-width: 100px; background: rgba(255,255,255,0.05); color: #4ade80;">
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
           <input type="text" id="fuelStation" placeholder="Station / City (e.g. Bapco Manama, Tubli)" style="flex:2; min-width: 180px;">
