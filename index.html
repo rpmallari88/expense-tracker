@@ -658,9 +658,10 @@
           <h3 style="margin:0; color:#38bdf8;">&#x1F697; Mitsubishi Xpander Cross (2024)</h3>
           <span style="color:#cbd5e1; font-size:0.85rem;">Plate: 682316 &bull; Fuelio Car Log</span>
         </div>
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button id="carSubTabFuelBtn" onclick="switchCarSubTab('fuel')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #38bdf8; background: #38bdf8; color: #000; font-weight: bold; cursor: pointer;">&#x26FD; Fuel Log</button>
           <button id="carSubTabServiceBtn" onclick="switchCarSubTab('service')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #facc15; background: rgba(250, 204, 21, 0.15); color: #facc15; font-weight: bold; cursor: pointer;">&#x1F527; Services & Costs</button>
+          <button id="carSubTabStatsBtn" onclick="switchCarSubTab('stats')" style="padding: 6px 14px; border-radius: 20px; border: 1px solid #4ade80; background: rgba(74, 222, 128, 0.15); color: #4ade80; font-weight: bold; cursor: pointer;">&#x1F4CA; Statistics</button>
         </div>
       </div>
 
@@ -749,6 +750,123 @@
       <!-- Services List -->
       <div id="serviceListContainer" style="display: flex; flex-direction: column; gap: 10px;">
         <!-- Service cards render here -->
+      </div>
+    </div>
+
+    <!-- CAR SUB-SECTION 3: STATISTICS (FUELIO STYLE IN ENGLISH) -->
+    <div id="carStatsSection" style="display:none;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+        
+        <!-- CARD 1: DISTANCE & MILEAGE -->
+        <div style="background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 16px;">
+          <h4 style="margin: 0 0 12px 0; color: #38bdf8; display:flex; align-items:center; gap:6px;">&#x1F697; Distance & Mileage</h4>
+          
+          <div style="margin-bottom: 15px;">
+            <div style="font-size: 0.8rem; color: #94a3b8;">Total Distance Logged</div>
+            <div id="statTotalDist" style="font-size: 1.5rem; font-weight: bold; color: #f8fafc;">-- km</div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">Distance This Year</div>
+              <div id="statDistThisYear" style="font-size: 1.05rem; font-weight: bold; color: #38bdf8;">-- km</div>
+              <div style="font-size: 0.7rem; color: #64748b; margin-top:2px;">Prev Year: <span id="statDistPrevYear">-- km</span></div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">Distance This Month</div>
+              <div id="statDistThisMonth" style="font-size: 1.05rem; font-weight: bold; color: #38bdf8;">-- km</div>
+              <div style="font-size: 0.7rem; color: #64748b; margin-top:2px;">Prev Month: <span id="statDistPrevMonth">-- km</span></div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;">
+            <div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">Avg Mileage / Day</div>
+              <div id="statAvgPerDay" style="font-size: 1rem; font-weight: bold; color: #cbd5e1;">-- km</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">Avg Mileage / Month</div>
+              <div id="statAvgPerMonth" style="font-size: 1rem; font-weight: bold; color: #cbd5e1;">-- km</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 2: FUEL & CONSUMPTION -->
+        <div style="background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(74, 222, 128, 0.25); border-radius: 8px; padding: 16px;">
+          <h4 style="margin: 0 0 12px 0; color: #4ade80; display:flex; align-items:center; gap:6px;">&#x26FD; Fuel & Consumption</h4>
+          
+          <div style="display:flex; justify-content:space-between; margin-bottom: 12px;">
+            <div>
+              <div style="font-size: 0.8rem; color: #94a3b8;">Total Fill-ups</div>
+              <div id="statTotalFillups" style="font-size: 1.4rem; font-weight: bold; color: #f8fafc;">--</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size: 0.8rem; color: #94a3b8;">Total Fuel Pumped</div>
+              <div id="statTotalLiters" style="font-size: 1.4rem; font-weight: bold; color: #4ade80;">-- L</div>
+            </div>
+          </div>
+
+          <div style="padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <div style="font-size: 0.75rem; color: #94a3b8;">Average Fuel Economy</div>
+            <div id="statAvgKml" style="font-size: 1.35rem; font-weight: bold; color: #4ade80;">-- km/L</div>
+            <div style="display:flex; justify-content:space-between; margin-top: 6px; font-size: 0.75rem;">
+              <span style="color:#4ade80;">Best: <strong id="statBestKml">-- km/L</strong></span>
+              <span style="color:#ef4444;">Worst: <strong id="statWorstKml">-- km/L</strong></span>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;">
+            <div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">Min Fill-up</div>
+              <div id="statMinFillup" style="font-size: 0.95rem; font-weight: bold; color: #cbd5e1;">-- L</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">Max Fill-up</div>
+              <div id="statMaxFillup" style="font-size: 0.95rem; font-weight: bold; color: #cbd5e1;">-- L</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 3: COSTS & RUNNING EXPENSES -->
+        <div style="background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(250, 204, 21, 0.25); border-radius: 8px; padding: 16px;">
+          <h4 style="margin: 0 0 12px 0; color: #facc15; display:flex; align-items:center; gap:6px;">&#x1F4B0; Fuel Costs & Rates</h4>
+          
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 0.8rem; color: #94a3b8;">Total Fuel Cost</div>
+            <div id="statTotalCostBhd" style="font-size: 1.5rem; font-weight: bold; color: #facc15;">-- BHD</div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">Gas Cost This Year</div>
+              <div id="statCostThisYear" style="font-size: 1.05rem; font-weight: bold; color: #facc15;">-- BHD</div>
+              <div style="font-size: 0.7rem; color: #64748b; margin-top:2px;">Prev Year: <span id="statCostPrevYear">-- BHD</span></div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">Gas Cost This Month</div>
+              <div id="statCostThisMonth" style="font-size: 1.05rem; font-weight: bold; color: #facc15;">-- BHD</div>
+              <div style="font-size: 0.7rem; color: #64748b; margin-top:2px;">Prev Month: <span id="statCostPrevMonth">-- BHD</span></div>
+            </div>
+          </div>
+
+          <div style="margin-top: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size: 0.75rem; color: #94a3b8;">Average Cost / km</div>
+                <div id="statAvgCostPerKm" style="font-size: 1.15rem; font-weight: bold; color: #38bdf8;">-- BHD / km</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size: 0.75rem; color: #94a3b8;">Avg Cost / Month</div>
+                <div id="statAvgCostPerMonth" style="font-size: 1.15rem; font-weight: bold; color: #cbd5e1;">-- BHD</div>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top: 8px; font-size: 0.75rem;">
+              <span style="color:#4ade80;">Best Gas Price: <strong id="statBestGasPrice">-- BHD/L</strong></span>
+              <span style="color:#cbd5e1;">Avg Cost / Day: <strong id="statAvgCostPerDay">-- BHD</strong></span>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

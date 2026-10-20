@@ -1855,22 +1855,135 @@ let editServiceId = null;
 function switchCarSubTab(sub) {
   const fuelBtn = document.getElementById('carSubTabFuelBtn');
   const srvBtn = document.getElementById('carSubTabServiceBtn');
+  const statsBtn = document.getElementById('carSubTabStatsBtn');
   const fuelSec = document.getElementById('carFuelSection');
   const srvSec = document.getElementById('carServiceSection');
+  const statsSec = document.getElementById('carStatsSection');
 
   if (sub === 'fuel') {
     if (fuelBtn) { fuelBtn.style.background = '#38bdf8'; fuelBtn.style.color = '#000'; }
     if (srvBtn) { srvBtn.style.background = 'rgba(250, 204, 21, 0.15)'; srvBtn.style.color = '#facc15'; }
+    if (statsBtn) { statsBtn.style.background = 'rgba(74, 222, 128, 0.15)'; statsBtn.style.color = '#4ade80'; }
     if (fuelSec) fuelSec.style.display = 'block';
     if (srvSec) srvSec.style.display = 'none';
+    if (statsSec) statsSec.style.display = 'none';
     renderFuelLogs();
-  } else {
+  } else if (sub === 'service') {
     if (srvBtn) { srvBtn.style.background = '#facc15'; srvBtn.style.color = '#000'; }
     if (fuelBtn) { fuelBtn.style.background = 'rgba(56, 189, 248, 0.15)'; fuelBtn.style.color = '#38bdf8'; }
+    if (statsBtn) { statsBtn.style.background = 'rgba(74, 222, 128, 0.15)'; statsBtn.style.color = '#4ade80'; }
     if (fuelSec) fuelSec.style.display = 'none';
     if (srvSec) srvSec.style.display = 'block';
+    if (statsSec) statsSec.style.display = 'none';
     renderCarServices();
+  } else if (sub === 'stats') {
+    if (statsBtn) { statsBtn.style.background = '#4ade80'; statsBtn.style.color = '#000'; }
+    if (fuelBtn) { fuelBtn.style.background = 'rgba(56, 189, 248, 0.15)'; fuelBtn.style.color = '#38bdf8'; }
+    if (srvBtn) { srvBtn.style.background = 'rgba(250, 204, 21, 0.15)'; srvBtn.style.color = '#facc15'; }
+    if (fuelSec) fuelSec.style.display = 'none';
+    if (srvSec) srvSec.style.display = 'none';
+    if (statsSec) statsSec.style.display = 'block';
+    calculateCarDetailedStats();
   }
+}
+
+function calculateCarDetailedStats() {
+  if (fuelLogs.length === 0) return;
+
+  const sorted = [...fuelLogs].sort((a,b) => new Date(a.date) - new Date(b.date));
+  const first = sorted[0];
+  const latest = sorted[sorted.length - 1];
+
+  const totalDist = latest.odometer - first.odometer;
+  const totalDays = Math.max(1, Math.round((new Date(latest.date) - new Date(first.date)) / (1000 * 60 * 60 * 24)));
+  const totalMonths = Math.max(1, totalDays / 30.417);
+
+  // Years & Months calculations
+  const now = new Date(latest.date);
+  const currentYear = now.getFullYear();
+  const prevYear = currentYear - 1;
+  const currentMonthStr = latest.date.substring(0, 7);
+  
+  // Previous month string
+  const pDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthStr = `${pDate.getFullYear()}-${String(pDate.getMonth() + 1).padStart(2, '0')}`;
+
+  let distThisYear = 0, distPrevYear = 0;
+  let distThisMonth = 0, distPrevMonth = 0;
+  let costThisYear = 0, costPrevYear = 0;
+  let costThisMonth = 0, costPrevMonth = 0;
+  let totalFuelLiters = 0;
+  let totalFuelCost = 0;
+  let minFillup = Infinity, maxFillup = 0;
+  let bestPrice = Infinity, worstPrice = 0;
+  let kmlList = [];
+
+  sorted.forEach((f, idx) => {
+    const yr = new Date(f.date).getFullYear();
+    const ym = f.date.substring(0, 7);
+    const cost = Number(f.total_cost || 0);
+    const liters = Number(f.fuel_litres || 0);
+    const pricePerL = f.price_per_litre ? Number(f.price_per_litre) : (liters > 0 ? cost / liters : 0);
+
+    totalFuelLiters += liters;
+    totalFuelCost += cost;
+
+    if (liters > 0 && liters < minFillup) minFillup = liters;
+    if (liters > maxFillup) maxFillup = liters;
+    if (pricePerL > 0 && pricePerL < bestPrice) bestPrice = pricePerL;
+    if (pricePerL > worstPrice) worstPrice = pricePerL;
+
+    if (f.kml && f.kml > 0 && f.kml < 50) kmlList.push(Number(f.kml));
+
+    if (idx > 0) {
+      const dist = f.odometer - sorted[idx - 1].odometer;
+      if (dist > 0) {
+        if (yr === currentYear) distThisYear += dist;
+        if (yr === prevYear) distPrevYear += dist;
+        if (ym === currentMonthStr) distThisMonth += dist;
+        if (ym === prevMonthStr) distPrevMonth += dist;
+      }
+    }
+
+    if (yr === currentYear) costThisYear += cost;
+    if (yr === prevYear) costPrevYear += cost;
+    if (ym === currentMonthStr) costThisMonth += cost;
+    if (ym === prevMonthStr) costPrevMonth += cost;
+  });
+
+  const avgKml = kmlList.length > 0 ? (kmlList.reduce((a,b)=>a+b,0) / kmlList.length) : 0;
+  const bestKml = kmlList.length > 0 ? Math.max(...kmlList) : 0;
+  const worstKml = kmlList.length > 0 ? Math.min(...kmlList) : 0;
+  const avgCostPerKm = totalDist > 0 ? (totalFuelCost / totalDist) : 0;
+
+  // Set DOM Values
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+
+  setEl('statTotalDist', `${totalDist.toLocaleString()} km`);
+  setEl('statDistThisYear', `${distThisYear.toLocaleString()} km`);
+  setEl('statDistPrevYear', `${distPrevYear.toLocaleString()} km`);
+  setEl('statDistThisMonth', `${distThisMonth.toLocaleString()} km`);
+  setEl('statDistPrevMonth', `${distPrevMonth.toLocaleString()} km`);
+  setEl('statAvgPerDay', `${(totalDist / totalDays).toFixed(2)} km`);
+  setEl('statAvgPerMonth', `${(totalDist / totalMonths).toFixed(2)} km`);
+
+  setEl('statTotalFillups', `${fuelLogs.length}`);
+  setEl('statTotalLiters', `${totalFuelLiters.toFixed(2)} L`);
+  setEl('statAvgKml', `${avgKml.toFixed(2)} km/L`);
+  setEl('statBestKml', `${bestKml.toFixed(2)} km/L`);
+  setEl('statWorstKml', `${worstKml.toFixed(2)} km/L`);
+  setEl('statMinFillup', `${minFillup !== Infinity ? minFillup.toFixed(2) : '--'} L`);
+  setEl('statMaxFillup', `${maxFillup.toFixed(2)} L`);
+
+  setEl('statTotalCostBhd', `${totalFuelCost.toFixed(3)} BHD`);
+  setEl('statCostThisYear', `${costThisYear.toFixed(3)} BHD`);
+  setEl('statCostPrevYear', `${costPrevYear.toFixed(3)} BHD`);
+  setEl('statCostThisMonth', `${costThisMonth.toFixed(3)} BHD`);
+  setEl('statCostPrevMonth', `${costPrevMonth.toFixed(3)} BHD`);
+  setEl('statAvgCostPerKm', `${avgCostPerKm.toFixed(3)} BHD / km`);
+  setEl('statAvgCostPerMonth', `${(totalFuelCost / totalMonths).toFixed(3)} BHD`);
+  setEl('statAvgCostPerDay', `${(totalFuelCost / totalDays).toFixed(3)} BHD`);
+  setEl('statBestGasPrice', `${bestPrice !== Infinity ? bestPrice.toFixed(3) : '--'} BHD/L`);
 }
 
 async function fetchFuelLogs() {
