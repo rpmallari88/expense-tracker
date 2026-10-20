@@ -783,7 +783,7 @@ function renderTransactions() {
         <div class="tx-right">
           <span class="tx-amount">${Number(tx.amount).toFixed(3)} BHD</span>
           <button class="edit-btn" onclick="openEditModal('${tx.id}')">Edit</button>
-          <button class="delete-btn" onclick="deleteTransaction('${tx.id}')">Delete</button>
+          <button class="delete-btn" onclick="deleteTransaction('${tx.id}')">&times;</button>
         </div>
       </div>
     `;
@@ -1628,12 +1628,16 @@ function renderWarranties() {
 
     const safeReceiptUrl = item.receipt_url ? item.receipt_url.replace(/'/g, "\\'") : '';
     const safeItemName = (item.item_name || 'Receipt').replace(/'/g, "\\'");
+    const priceDisplay = (item.price !== null && item.price !== undefined && item.price !== '') ? `<strong style="color:#facc15;">${Number(item.price).toFixed(3)} BHD</strong>` : '';
 
     return `
       <div style="background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; justify-content: space-between;">
         <div>
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-            <h4 style="margin: 0; color: #f8fafc; font-size: 1.05rem;">${item.item_name}</h4>
+            <div>
+              <h4 style="margin: 0; color: #f8fafc; font-size: 1.05rem;">${item.item_name}</h4>
+              ${priceDisplay ? `<div style="font-size: 0.85rem; margin-top: 2px;">${priceDisplay}</div>` : ''}
+            </div>
             <div style="display: flex; gap: 5px;">
               <button onclick="editWarranty('${item.id}')" style="background:none; border:none; color: #38bdf8; cursor:pointer; font-size:0.85rem;" title="Edit">&#x270F;</button>
               <button onclick="deleteWarranty('${item.id}')" style="background:none; border:none; color: #ef4444; cursor:pointer; font-size:0.85rem;" title="Delete">&times;</button>
@@ -1702,6 +1706,7 @@ if (warrantyForm) {
   warrantyForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('warrItemName').value.trim();
+    const price = document.getElementById('warrPrice').value;
     const date = document.getElementById('warrPurchaseDate').value;
     const duration = document.getElementById('warrDuration').value;
     const unit = document.getElementById('warrDurationUnit').value;
@@ -1744,9 +1749,12 @@ if (warrantyForm) {
         receiptUrl = publicUrl;
       }
 
+      const priceVal = (price !== '' && !isNaN(price)) ? parseFloat(price) : null;
+
       if (editWarrantyId) {
         const updatePayload = {
           item_name: name,
+          price: priceVal,
           purchase_date: date,
           warranty_duration: parseFloat(duration),
           warranty_unit: unit,
@@ -1767,6 +1775,7 @@ if (warrantyForm) {
         const { error } = await supabaseClient.from('warranties').insert([{
           id: newId,
           item_name: name,
+          price: priceVal,
           purchase_date: date,
           warranty_duration: parseFloat(duration),
           warranty_unit: unit,
@@ -1797,6 +1806,7 @@ function editWarranty(id) {
 
   editWarrantyId = id;
   document.getElementById('warrItemName').value = item.item_name || '';
+  document.getElementById('warrPrice').value = (item.price !== null && item.price !== undefined) ? item.price : '';
   document.getElementById('warrPurchaseDate').value = item.purchase_date || '';
   document.getElementById('warrDuration').value = item.warranty_duration || '';
   document.getElementById('warrDurationUnit').value = item.warranty_unit || 'years';
