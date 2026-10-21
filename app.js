@@ -2034,6 +2034,114 @@ function updateCarMetrics() {
   if (avgKmlEl) avgKmlEl.innerText = kmlCount > 0 ? `${(kmlSum / kmlCount).toFixed(2)} km/L` : '-- km/L';
   if (totalFuelEl) totalFuelEl.innerText = `${totalFuelCost.toFixed(3)} BHD`;
   if (totalServiceEl) totalServiceEl.innerText = `${totalServiceCost.toFixed(3)} BHD`;
+
+  updateCarServiceDue(maxOdo);
+}
+
+function updateCarServiceDue(currentOdo) {
+  const targetEl = document.getElementById('carNextServiceTarget');
+  const detailsEl = document.getElementById('carNextServiceDetails');
+  const badgeEl = document.getElementById('carNextServiceBadge');
+  const bannerEl = document.getElementById('carServiceDueBanner');
+
+  if (!targetEl || !detailsEl || !badgeEl) return;
+
+  // Find the last periodic service (e.g. 10000km, 20000km, 30000km, 40000km)
+  // or any service item with category 'Service' or having a substantial odometer reading
+  const serviceRecords = carServices
+    .filter(s => s.date && (s.category === 'Service' || /service|oil/i.test(s.title)))
+    .sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  const lastService = serviceRecords.length > 0 ? serviceRecords[0] : null;
+
+  let lastServiceOdo = 0;
+  let lastServiceDate = new Date('2024-04-15'); // Car purchase date fallback
+
+  if (lastService) {
+    lastServiceOdo = Number(lastService.odometer || 0);
+    lastServiceDate = new Date(lastService.date);
+  }
+
+  // Next service interval is either +10,000 km or 6 months (whichever comes first)
+  // Calculate next 10,000 km milestone
+  let nextTargetKm = 10000;
+  if (lastServiceOdo > 0) {
+    nextTargetKm = (Math.floor(lastServiceOdo / 10000) + 1) * 10000;
+  }
+  // If current odometer is already higher, bump target
+  if (currentOdo >= nextTargetKm) {
+    nextTargetKm = (Math.floor(currentOdo / 10000) + 1) * 10000;
+  }
+
+  const kmRemaining = Math.round(nextTargetKm - currentOdo);
+
+  // Calculate 6 months from last service date
+  const sixMonthsTarget = new Date(lastServiceDate);
+  sixMonthsTarget.setMonth(sixMonthsTarget.getMonth() + 6);
+  
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  sixMonthsTarget.setHours(0,0,0,0);
+
+  const daysRemaining = Math.ceil((sixMonthsTarget - today) / (1000 * 60 * 60 * 24));
+  const dateTargetStr = sixMonthsTarget.toISOString().split('T')[0];
+
+  targetEl.innerText = `${nextTargetKm.toLocaleString()} km Service`;
+
+  // Determine which is closer: km or months
+  // Assuming ~50 km/day average
+  const estimatedDaysToKm = kmRemaining > 0 ? Math.round(kmRemaining / 50) : 0;
+  const isKmCloser = estimatedDaysToKm < daysRemaining;
+
+  let urgency = 'normal'; // 'normal', 'soon', 'overdue'
+
+  if (kmRemaining <= 0 || daysRemaining <= 0) {
+    urgency = 'overdue';
+  } else if (kmRemaining <= 1000 || daysRemaining <= 30) {
+    urgency = 'soon';
+  }
+
+  let statusBadgeHtml = '';
+  if (urgency === 'overdue') {
+    const overdueReason = (kmRemaining <= 0 && daysRemaining <= 0) 
+      ? `Overdue by ${Math.abs(kmRemaining).toLocaleString()} km & ${Math.abs(daysRemaining)} days`
+      : (kmRemaining <= 0 ? `Overdue by ${Math.abs(kmRemaining).toLocaleString()} km` : `Overdue by ${Math.abs(daysRemaining)} days`);
+    statusBadgeHtml = `<span style="background: rgba(239, 68, 68, 0.25); color: #ef4444; border: 1px solid #ef4444; padding: 4px 12px; border-radius: 14px; font-size: 0.8rem; font-weight: bold;">&#x26A0;&#xFE0F; ${overdueReason}</span>`;
+    if (bannerEl) bannerEl.style.borderColor = '#ef4444';
+  } else if (urgency === 'soon') {
+    statusBadgeHtml = `<span style="background: rgba(250, 204, 21, 0.25); color: #facc15; border: 1px solid #facc15; padding: 4px 12px; border-radius: 14px; font-size: 0.8rem; font-weight: bold;">&#x26A0;&#xFE0F; Service Due Soon</span>`;
+    if (bannerEl) bannerEl.style.borderColor = '#facc15';
+  } else {
+    statusBadgeHtml = `<span style="background: rgba(74, 222, 128, 0.2); color: #4ade80; border: 1px solid #4ade80; padding: 4px 12px; border-radius: 14px; font-size: 0.8rem; font-weight: bold;">&#x2705; Good Condition</span>`;
+    if (bannerEl) bannerEl.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+  }
+
+  badgeEl.innerHTML = statusBadgeHtml;
+
+  const kmText = kmRemaining > 0 ? `${kmRemaining.toLocaleString()} km left` : `${Math.abs(kmRemaining).toLocaleString()} km overdue`;
+  const timeText = daysRemaining > 0 ? `${daysRemaining} days left (${dateTargetStr})` : `${Math.abs(daysRemaining)} days overdue (${dateTargetStr})`;
+
+  detailsEl.innerHTML = `
+    <strong>By Mileage:</strong> ${kmText} (Target: ${nextTargetKm.toLocaleString()} km) &bull; 
+    <strong>By Time (6 mos):</strong> ${timeText}
+    <br><span style="font-size: 0.75rem; color: #94a3b8; font-style: italic;">Next service is triggered by whichever limit arrives first.</span>
+  `;
+
+  // Update tab button badge if car service is due
+  updateCarTabBadge(urgency);
+}
+
+function updateCarTabBadge(urgency) {
+  const carBtn = document.querySelector('button[onclick*="carTab"]');
+  if (!carBtn) return;
+
+  if (urgency === 'overdue') {
+    carBtn.innerHTML = `&#x1F697; My Car <span style="background:#ef4444; color:white; padding: 2px 6px; border-radius: 10px; font-size:0.7rem; margin-left:4px;">!</span>`;
+  } else if (urgency === 'soon') {
+    carBtn.innerHTML = `&#x1F697; My Car <span style="background:#facc15; color:#000; padding: 2px 6px; border-radius: 10px; font-size:0.7rem; margin-left:4px;">!</span>`;
+  } else {
+    carBtn.innerHTML = `&#x1F697; My Car`;
+  }
 }
 
 function renderFuelLogs() {
