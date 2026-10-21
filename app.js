@@ -2234,41 +2234,66 @@ if (fuelDateInput && !fuelDateInput.value) {
   fuelDateInput.value = d.toISOString().split('T')[0];
 }
 
-// Auto-detect location via phone/browser GPS
+// Auto-detect location via phone/browser GPS or IP fallback
 async function detectFuelLocation() {
   const stationInput = document.getElementById('fuelStation');
+  const btn = event && event.target ? event.target : null;
+  const originalBtnText = btn ? btn.innerText : '📍 Detect';
+
+  if (btn) btn.innerText = '⌛ Locating...';
+  stationInput.placeholder = 'Detecting location via GPS...';
+
+  const finishWithCity = (cityName) => {
+    stationInput.value = cityName;
+    if (btn) btn.innerText = originalBtnText;
+    stationInput.placeholder = 'Station / City (optional)';
+  };
+
+  // Helper: Try IP-based city detection fallback
+  const fallbackIpLocation = async () => {
+    try {
+      const r = await fetch('https://ipapi.co/json/');
+      const d = await r.json();
+      if (d && (d.city || d.region)) {
+        finishWithCity(`${d.city || d.region}, Bahrain`);
+        return;
+      }
+    } catch (e) {}
+    finishWithCity('Bapco, Bahrain');
+  };
+
   if (!navigator.geolocation) {
-    alert('Geolocation is not supported by your browser.');
+    await fallbackIpLocation();
     return;
   }
 
-  const prevText = stationInput.placeholder;
-  stationInput.placeholder = 'Detecting location via GPS...';
-
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
-    try {
-      const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-      const data = await resp.json();
-      if (data && data.address) {
-        const addr = data.address;
-        const place = addr.amenity || addr.fuel || addr.road || '';
-        const city = addr.city || addr.town || addr.village || addr.suburb || addr.county || 'Bahrain';
-        const formatted = place ? `${place}, ${city}` : city;
-        stationInput.value = formatted;
-      } else {
-        stationInput.value = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      try {
+        const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`);
+        const data = await resp.json();
+        if (data && data.address) {
+          const addr = data.address;
+          const place = addr.amenity || addr.fuel || addr.road || '';
+          const city = addr.city || addr.town || addr.village || addr.suburb || addr.county || 'Bahrain';
+          const formatted = place ? `${place}, ${city}` : city;
+          finishWithCity(formatted);
+        } else {
+          finishWithCity(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+        }
+      } catch (err) {
+        await fallbackIpLocation();
       }
-    } catch (e) {
-      stationInput.value = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-    } finally {
-      stationInput.placeholder = prevText;
-    }
-  }, (err) => {
-    alert('Unable to retrieve location: ' + err.message);
-    stationInput.placeholder = prevText;
-  }, { enableHighAccuracy: true, timeout: 10000 });
+    },
+    async (err) => {
+      // If user denied permission or on laptop without GPS hardware, fallback smoothly to IP
+      console.warn('GPS position error, falling back to IP:', err.message);
+      await fallbackIpLocation();
+    },
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+  );
 }
 
 // Auto-calculate liters when Price/L or Total Paid changes
