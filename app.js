@@ -2354,12 +2354,41 @@ if (fuelForm) {
         }]);
 
         if (!error) {
+          // If "Add to Expenses" is checked, automatically insert into transactions table
+          const autoAddTx = document.getElementById('fuelAutoAddTx');
+          const payMethod = document.getElementById('fuelPaymentMethod') ? document.getElementById('fuelPaymentMethod').value : 'Credit Card';
+
+          if (autoAddTx && autoAddTx.checked) {
+            const txDesc = stationVal ? `Bapco gas (${stationVal})` : 'Bapco gas';
+            const year_month = dateVal.substring(0, 7);
+            const { data: { user } } = await supabaseClient.auth.getUser();
+
+            const { data: txData, error: txError } = await supabaseClient.from('transactions').insert([{
+              date: dateVal,
+              description: txDesc,
+              amount: costVal,
+              payment_method: payMethod,
+              is_emergency: false,
+              is_paid: true,
+              year_month: year_month,
+              user_id: user ? user.id : null
+            }]).select();
+
+            if (!txError && txData && txData.length > 0) {
+              await logTransactionHistory('CREATED', txData[0], `Auto-added gas expense from Car Tab: ${txDesc} (${costVal} BHD via ${payMethod})`);
+              await fetchTransactions();
+              applyFilters();
+            }
+          }
+
           await fetchFuelLogs();
           fuelForm.reset();
           if (fuelLitresInput) fuelLitresInput.value = '';
           const d = new Date();
           d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
           document.getElementById('fuelDate').value = d.toISOString().split('T')[0];
+          if (document.getElementById('fuelAutoAddTx')) document.getElementById('fuelAutoAddTx').checked = true;
+          if (document.getElementById('fuelPaymentMethod')) document.getElementById('fuelPaymentMethod').style.display = 'inline-block';
         } else {
           alert(error.message);
         }
@@ -2543,3 +2572,11 @@ async function deleteService(id) {
   }
 }
 
+
+function toggleFuelPaymentMethod() {
+  const chk = document.getElementById('fuelAutoAddTx');
+  const sel = document.getElementById('fuelPaymentMethod');
+  if (chk && sel) {
+    sel.style.display = chk.checked ? 'inline-block' : 'none';
+  }
+}

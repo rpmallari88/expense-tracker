@@ -720,6 +720,16 @@
           <label style="display:flex; align-items:center; gap:5px; color:#cbd5e1; font-size:0.85rem; cursor:pointer;">
             <input type="checkbox" id="fuelIsFull" checked> Full Tank
           </label>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <label style="display:flex; align-items:center; gap:5px; color:#facc15; font-size:0.85rem; cursor:pointer;" title="Automatically add this gas expense to Transactions">
+              <input type="checkbox" id="fuelAutoAddTx" checked onchange="toggleFuelPaymentMethod()"> &#x1F4B8; Add to Expenses
+            </label>
+            <select id="fuelPaymentMethod" style="background: #0f172a; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; padding: 6px 10px; font-size: 0.85rem;">
+              <option value="Credit Card">Credit Card</option>
+              <option value="BenefitPay">BenefitPay</option>
+              <option value="Cash">Cash</option>
+            </select>
+          </div>
           <button type="submit" class="submit-btn" id="fuelSubmitBtn" style="margin:0; width:auto; padding: 8px 20px; background:#0284c7;">Add Fill-up</button>
           <button type="button" class="cancel-btn" id="fuelCancelBtn" onclick="cancelEditFuel()" style="display: none; width: auto; margin:0; padding: 8px 16px;">Cancel</button>
         </div>
