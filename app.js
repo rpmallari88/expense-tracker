@@ -307,6 +307,13 @@ function isGasTx(tx) {
   return desc.includes('gas') || desc.includes('bapco');
 }
 
+function isGroceryTx(tx) {
+  if (tx.is_grocery === true) return true;
+  const desc = (tx.description || '').toLowerCase();
+  const groceryKeywords = ['lulu', 'carrefour', 'hypermarket', 'supermarket', 'cold store', 'grocery', 'groceries', 'al jazira', 'al osra', 'nestoo', 'al hilli'];
+  return groceryKeywords.some(k => desc.includes(k));
+}
+
 function calculateSummaries() {
   let ccTotal = 0;
   let emergencyTotal = 0;
@@ -754,6 +761,8 @@ function renderTransactions() {
     list = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
   } else if (filterMethod === 'GAS') {
     list = monthFilteredTransactions.filter(tx => isGasTx(tx));
+  } else if (filterMethod === 'GROCERY') {
+    list = monthFilteredTransactions.filter(tx => isGroceryTx(tx));
   } else if (filterMethod !== 'ALL') {
     list = monthFilteredTransactions.filter(tx => tx.payment_method === filterMethod);
   }
@@ -774,6 +783,7 @@ function renderTransactions() {
 
   container.innerHTML = list.map(tx => {
     const isEmerg = isEmergencyTx(tx);
+    const isGroc = isGroceryTx(tx);
 
     return `
       <div class="tx-card ${isEmerg ? 'is-emergency' : ''}">
@@ -781,6 +791,7 @@ function renderTransactions() {
           <span class="tx-desc">
             ${tx.description || 'No Description'}
             ${isEmerg ? '<span class="emergency-badge">Emergency</span>' : ''}
+            ${(!isEmerg && isGroc) ? '<span style="background: rgba(74, 222, 128, 0.2); color: #4ade80; border: 1px solid #4ade80; font-size: 0.7rem; padding: 1px 6px; border-radius: 10px; margin-left: 6px; font-weight: bold;">Grocery</span>' : ''}
           </span>
           <span class="tx-meta">
             ${tx.date || ''} • ${tx.payment_method || ''} 
@@ -852,6 +863,9 @@ function openEditModal(id) {
   document.getElementById('editAmount').value = tx.amount;
   document.getElementById('editMethod').value = tx.payment_method;
   document.getElementById('editIsEmergency').checked = isEmergencyTx(tx);
+  if (document.getElementById('editIsGrocery')) {
+    document.getElementById('editIsGrocery').checked = isGroceryTx(tx);
+  }
   
   const isPaidContainer = document.getElementById('editIsPaidContainer');
   if (tx.payment_method === 'Dolp' || tx.payment_method === 'Monse') {
@@ -878,6 +892,7 @@ if (editForm) {
     const amount = parseFloat(document.getElementById('editAmount').value);
     const payment_method = document.getElementById('editMethod').value;
     const is_emergency = document.getElementById('editIsEmergency').checked;
+    const is_grocery = document.getElementById('editIsGrocery') ? document.getElementById('editIsGrocery').checked : false;
     const is_paid = document.getElementById('editIsPaid').checked;
     const year_month = date.substring(0, 7);
 
@@ -891,6 +906,7 @@ if (editForm) {
         amount: amount, 
         payment_method: payment_method, 
         is_emergency: is_emergency,
+        is_grocery: is_grocery,
         is_paid: is_paid,
         year_month: year_month 
       })
@@ -935,13 +951,14 @@ if (form) {
     const amount = parseFloat(document.getElementById('amount').value);
     const payment_method = document.getElementById('method').value;
     const is_emergency = document.getElementById('isEmergency').checked;
+    const is_grocery = document.getElementById('isGrocery') ? document.getElementById('isGrocery').checked : false;
     const is_paid = document.getElementById('isPaid').checked;
     const year_month = date.substring(0, 7);
 
     const { data: { user } } = await supabaseClient.auth.getUser();
 
     const { data, error } = await supabaseClient.from('transactions').insert([
-      { date, description, amount, payment_method, is_emergency, is_paid, year_month, user_id: user.id }
+      { date, description, amount, payment_method, is_emergency, is_grocery, is_paid, year_month, user_id: user.id }
     ]).select();
 
     if (error) {
