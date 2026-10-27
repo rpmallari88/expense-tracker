@@ -1337,7 +1337,24 @@ function cancelEditCelebration() {
 
 // ================= MAINTENANCE / ITEM TRACKER =================
 let trackerItems = [];
+let replenishmentHistory = [];
 let editMaintenanceId = null;
+
+function getLocalReplenishHistory() {
+  try {
+    return JSON.parse(localStorage.getItem('replenishment_history') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveLocalReplenishHistory(hist) {
+  try {
+    localStorage.setItem('replenishment_history', JSON.stringify(hist));
+  } catch (e) {
+    console.warn('Could not save to localStorage', e);
+  }
+}
 
 async function fetchTrackerItems() {
   const { data, error } = await supabaseClient.from('item_tracker').select('*');
@@ -1359,6 +1376,36 @@ async function fetchTrackerItems() {
     });
     updateMaintenanceBadge();
   }
+  
+  await fetchReplenishmentHistory();
+}
+
+async function fetchReplenishmentHistory() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('replenishment_history')
+      .select('*')
+      .order('replaced_date', { ascending: false });
+    if (!error && data) {
+      replenishmentHistory = data;
+      saveLocalReplenishHistory(data);
+    } else {
+      // Fallback to local storage
+      replenishmentHistory = getLocalReplenishHistory();
+    }
+  } catch (e) {
+    replenishmentHistory = getLocalReplenishHistory();
+  }
+}
+
+function formatDurationDays(days) {
+  if (days === 0) return 'Same day';
+  if (days === 1) return '1 day';
+  if (days < 30) return `${days} days`;
+  const months = Math.floor(days / 30.4);
+  const remDays = Math.round(days % 30.4);
+  if (remDays === 0) return months === 1 ? '1 month' : `${months} months`;
+  return `${months}m ${remDays}d (${days} days)`;
 }
 
 function renderMaintenanceTab() {
@@ -1380,6 +1427,25 @@ function renderMaintenanceTab() {
     lastReplaced.setHours(0,0,0,0);
     const diffTime = today - lastReplaced;
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Check replacement history for this item
+    const itemHistory = replenishmentHistory.filter(h => 
+      String(h.item_id) === String(item.id) || 
+      (h.item_name && h.item_name.toLowerCase().trim() === item.item_name.toLowerCase().trim())
+    );
+    const historyCount = itemHistory.length;
+    const latestHistory = historyCount > 0 ? itemHistory[0] : null;
+    
+    let historySnippet = '';
+    if (latestHistory && latestHistory.days_lasted !== undefined && latestHistory.days_lasted !== null) {
+      const durText = formatDurationDays(Number(latestHistory.days_lasted));
+      historySnippet = `
+        <div style="margin-top: 6px; padding: 6px 10px; background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; border-radius: 4px; font-size: 0.8rem; color: #bae6fd;">
+          &#x1F4CA; Previous piece lasted: <strong>${durText}</strong>
+          <span style="color: #94a3b8; font-size: 0.75rem;">(${latestHistory.start_date || 'prev'} &rarr; ${latestHistory.replaced_date})</span>
+        </div>
+      `;
+    }
     
     let statusHtml = '';
     
@@ -1404,24 +1470,30 @@ function renderMaintenanceTab() {
       } else {
         statusHtml = `<div style="color: #4ade80; margin-top: 5px;">Replace in ${targetDiffDays} days</div>`;
       }
-      statusHtml += `<div style="font-size: 0.75rem; color: #cbd5e1;">Target: ${targetDate.toISOString().split('T')[0]}</div>`;
+      statusHtml += `<div style="font-size: 0.75rem; color: #cbd5e1;">Target: ${targetDate.toISOString().split('T')[0]} (Active: ${diffDays} days)</div>`;
     } else {
       statusHtml = `<div style="color: #38bdf8; font-weight: bold; margin-top: 5px;">Active for ${diffDays} days</div>`;
     }
     
     return `
-      <div style="background: rgba(0, 0, 0, 0.4); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); position: relative;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-          <strong style="color:white; font-size: 1.1rem;">${item.item_name}</strong>
-          <div style="display:flex; gap: 8px;">
-            <button onclick="editMaintenance('${item.id}')" style="background:none; border:none; color:#38bdf8; cursor:pointer; font-weight:bold; font-size: 0.8rem;">Edit</button>
-            <button onclick="deleteMaintenance('${item.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold; font-size: 0.8rem;">X</button>
+      <div style="background: rgba(0, 0, 0, 0.45); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); position: relative; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <strong style="color:white; font-size: 1.1rem;">${item.item_name}</strong>
+            <div style="display:flex; gap: 8px;">
+              <button onclick="editMaintenance('${item.id}')" style="background:none; border:none; color:#38bdf8; cursor:pointer; font-weight:bold; font-size: 0.8rem;" title="Edit">&#x270F; Edit</button>
+              <button onclick="deleteMaintenance('${item.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-weight:bold; font-size: 0.8rem;" title="Delete">&times;</button>
+            </div>
           </div>
+          <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">Last Replaced: <span style="color:#f8fafc; font-weight:500;">${item.last_replaced}</span></div>
+          ${statusHtml}
+          ${historySnippet}
         </div>
-        <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">Last Replaced: ${item.last_replaced}</div>
-        ${statusHtml}
         
-        <button onclick="replacedToday('${item.id}')" style="width: 100%; margin-top: 15px; padding: 8px; background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; color: #38bdf8; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">&#x2705; Replaced Today</button>
+        <div style="display:flex; gap:8px; margin-top: 15px;">
+          <button onclick="replacedToday('${item.id}')" style="flex:2; padding: 8px 10px; background: rgba(56, 189, 248, 0.12); border: 1px solid #38bdf8; color: #38bdf8; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: 0.2s;">&#x2705; Replaced Today</button>
+          <button onclick="openReplenishHistory('${item.id}')" style="flex:1; padding: 8px 10px; background: rgba(250, 204, 21, 0.12); border: 1px solid rgba(250, 204, 21, 0.4); color: #facc15; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.82rem; transition: 0.2s;" title="View past lifespans and history">&#x1F4DC; History${historyCount > 0 ? ` (${historyCount})` : ''}</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -1506,17 +1578,62 @@ async function deleteMaintenance(id) {
 
   const { error } = await supabaseClient.from('item_tracker').delete().eq('id', id);
   if (!error) {
+    // Also delete history for this item
+    try {
+      await supabaseClient.from('replenishment_history').delete().eq('item_id', id);
+    } catch(e) {}
+    const localHist = getLocalReplenishHistory().filter(h => String(h.item_id) !== String(id));
+    saveLocalReplenishHistory(localHist);
     await fetchTrackerItems();
     renderMaintenanceTab();
   }
 }
 
 async function replacedToday(id) {
-  // Convert current local date to YYYY-MM-DD correctly taking timezone into account
+  const item = trackerItems.find(x => String(x.id) === String(id));
+  if (!item) return;
+
+  // Convert current local date to YYYY-MM-DD taking timezone into account
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   const todayStr = d.toISOString().split('T')[0];
-  
+
+  const prevDate = item.last_replaced;
+  let daysLasted = 0;
+  if (prevDate) {
+    const pDate = new Date(prevDate);
+    pDate.setHours(0,0,0,0);
+    const nDate = new Date(todayStr);
+    nDate.setHours(0,0,0,0);
+    daysLasted = Math.max(0, Math.round((nDate - pDate) / (1000 * 60 * 60 * 24)));
+  }
+
+  const historyRecord = {
+    id: Math.floor(Math.random() * 2100000000).toString(),
+    item_id: item.id,
+    item_name: item.item_name,
+    start_date: prevDate || todayStr,
+    replaced_date: todayStr,
+    days_lasted: daysLasted,
+    created_at: new Date().toISOString()
+  };
+
+  // Save to Supabase replenishment_history table (if table exists)
+  try {
+    const { error: histError } = await supabaseClient.from('replenishment_history').insert([historyRecord]);
+    if (histError) {
+      console.warn('Could not insert to replenishment_history table, saving locally:', histError.message);
+    }
+  } catch (e) {
+    console.warn('Supabase history table error, fallback to local', e);
+  }
+
+  // Always sync to local storage history as well
+  const currentLocal = getLocalReplenishHistory();
+  currentLocal.unshift(historyRecord);
+  saveLocalReplenishHistory(currentLocal);
+
+  // Update item_tracker last_replaced
   const { error } = await supabaseClient.from('item_tracker').update({
     last_replaced: todayStr
   }).eq('id', id);
@@ -1524,7 +1641,103 @@ async function replacedToday(id) {
   if (!error) {
     await fetchTrackerItems();
     renderMaintenanceTab();
+    
+    // Quick confirmation
+    const durDesc = formatDurationDays(daysLasted);
+    alert(`✅ Marked "${item.item_name}" as replaced today!\n\nThe piece you replaced lasted: ${durDesc} (${prevDate} to ${todayStr}).`);
+  } else {
+    alert(error.message);
   }
+}
+
+function openReplenishHistory(id) {
+  const item = trackerItems.find(x => String(x.id) === String(id));
+  if (!item) return;
+
+  const modal = document.getElementById('replenishHistoryModal');
+  const titleEl = document.getElementById('replenishHistoryTitle');
+  const subtitleEl = document.getElementById('replenishHistorySubtitle');
+  const bodyEl = document.getElementById('replenishHistoryBody');
+
+  if (!modal || !bodyEl) return;
+
+  titleEl.innerHTML = `&#x1F4DC; History: ${item.item_name}`;
+  subtitleEl.innerText = `Currently installed piece started on ${item.last_replaced}`;
+
+  const itemHistory = replenishmentHistory
+    .filter(h => String(h.item_id) === String(item.id) || (h.item_name && h.item_name.toLowerCase().trim() === item.item_name.toLowerCase().trim()))
+    .sort((a,b) => new Date(b.replaced_date || b.created_at) - new Date(a.replaced_date || a.created_at));
+
+  if (itemHistory.length === 0) {
+    bodyEl.innerHTML = `
+      <div style="text-align:center; padding: 30px 15px; color:#cbd5e1;">
+        <div style="font-size:2.2rem; margin-bottom:10px;">&#x1F4AD;</div>
+        <div style="font-weight:bold; font-size:1.05rem; color:#facc15; margin-bottom:6px;">No past replacements logged yet</div>
+        <div style="font-size:0.85rem; color:#94a3b8; max-width:340px; margin:0 auto;">
+          The current piece has been active since <strong>${item.last_replaced}</strong>.
+          Whenever you click <strong>Replaced Today</strong>, the completed cycle and how many days/months it lasted will be recorded here!
+        </div>
+      </div>
+    `;
+  } else {
+    // Calculate average lifespan
+    const totalDays = itemHistory.reduce((sum, h) => sum + Number(h.days_lasted || 0), 0);
+    const avgDays = Math.round(totalDays / itemHistory.length);
+
+    let avgHtml = `
+      <div style="background: rgba(250, 204, 21, 0.1); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 15px; display:flex; justify-content:space-around; text-align:center;">
+        <div>
+          <div style="font-size:0.75rem; color:#94a3b8; text-transform:uppercase;">Total Replacements</div>
+          <div style="font-size:1.2rem; font-weight:bold; color:#facc15;">${itemHistory.length}</div>
+        </div>
+        <div>
+          <div style="font-size:0.75rem; color:#94a3b8; text-transform:uppercase;">Average Lifespan</div>
+          <div style="font-size:1.2rem; font-weight:bold; color:#38bdf8;">${formatDurationDays(avgDays)}</div>
+        </div>
+      </div>
+    `;
+
+    const listHtml = itemHistory.map((h, idx) => {
+      const durText = formatDurationDays(Number(h.days_lasted || 0));
+      return `
+        <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:bold; color:#f8fafc; font-size:0.95rem;">
+              Cycle #${itemHistory.length - idx}: Lasted <span style="color:#4ade80;">${durText}</span>
+            </div>
+            <div style="font-size:0.8rem; color:#94a3b8; margin-top:3px;">
+              &#x1F4C5; ${h.start_date || 'Start'} &rarr; <strong>${h.replaced_date}</strong>
+            </div>
+          </div>
+          <button onclick="deleteReplenishHistoryItem('${h.id}', '${item.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:1rem; padding:4px 8px;" title="Delete this record">&times;</button>
+        </div>
+      `;
+    }).join('');
+
+    bodyEl.innerHTML = avgHtml + listHtml;
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeReplenishHistoryModal() {
+  const modal = document.getElementById('replenishHistoryModal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function deleteReplenishHistoryItem(histId, itemId) {
+  if (!confirm('Delete this history record?')) return;
+
+  try {
+    await supabaseClient.from('replenishment_history').delete().eq('id', histId);
+  } catch (e) {}
+
+  const currentLocal = getLocalReplenishHistory().filter(h => String(h.id) !== String(histId));
+  saveLocalReplenishHistory(currentLocal);
+
+  await fetchReplenishmentHistory();
+  renderMaintenanceTab();
+  openReplenishHistory(itemId);
 }
 
 
@@ -2079,15 +2292,20 @@ function updateCarServiceDue(currentOdo) {
     lastServiceDate = new Date(lastService.date);
   }
 
-  // Next service interval is either +10,000 km or 6 months (whichever comes first)
-  // Calculate next 10,000 km milestone
-  let nextTargetKm = 10000;
+  // Next service interval is either +10,000 km from last service or 6 months (whichever comes first)
+  // Milestone title (e.g. 50,000 km Service)
+  let nextMilestoneKm = 10000;
   if (lastServiceOdo > 0) {
-    nextTargetKm = (Math.floor(lastServiceOdo / 10000) + 1) * 10000;
+    nextMilestoneKm = (Math.floor(lastServiceOdo / 10000) + 1) * 10000;
   }
-  // If current odometer is already higher, bump target
-  if (currentOdo >= nextTargetKm) {
-    nextTargetKm = (Math.floor(currentOdo / 10000) + 1) * 10000;
+  if (currentOdo >= nextMilestoneKm) {
+    nextMilestoneKm = (Math.floor(currentOdo / 10000) + 1) * 10000;
+  }
+
+  // Exact target km is last service odometer + 10,000 km
+  let nextTargetKm = lastServiceOdo > 0 ? (lastServiceOdo + 10000) : nextMilestoneKm;
+  if (currentOdo >= nextTargetKm && lastServiceOdo === 0) {
+    nextTargetKm = nextMilestoneKm;
   }
 
   const kmRemaining = Math.round(nextTargetKm - currentOdo);
@@ -2103,7 +2321,7 @@ function updateCarServiceDue(currentOdo) {
   const daysRemaining = Math.ceil((sixMonthsTarget - today) / (1000 * 60 * 60 * 24));
   const dateTargetStr = sixMonthsTarget.toISOString().split('T')[0];
 
-  targetEl.innerText = `${nextTargetKm.toLocaleString()} km Service`;
+  targetEl.innerText = `${nextMilestoneKm.toLocaleString()} km Service`;
 
   // Determine which is closer: km or months
   // Assuming ~50 km/day average
