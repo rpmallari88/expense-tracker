@@ -1,4 +1,4 @@
-const SUPABASE_URL = "https://rdvrrayllyvvbaojycis.supabase.co";
+﻿const SUPABASE_URL = "https://rdvrrayllyvvbaojycis.supabase.co";
 const SUPABASE_KEY = "sb_publishable_yw0QInSEFsxTUlm5r7uTpA_Gn6LeWN2"; 
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -747,24 +747,57 @@ async function deleteCelebration(id) {
   }
 }
 
+function clearTxSearch() {
+  const searchInput = document.getElementById('txSearchInput');
+  if (searchInput) {
+    searchInput.value = '';
+    renderTransactions();
+  }
+}
+
 function renderTransactions() {
   const container = document.getElementById('transactionsContainer');
   const filterElement = document.getElementById('filterMethod');
   const filterMethod = filterElement ? filterElement.value : 'ALL';
   const filteredTotalDisplay = document.getElementById('filteredTotalDisplay');
   const filteredCountDisplay = document.getElementById('filteredCountDisplay');
+  const searchInput = document.getElementById('txSearchInput');
+  const clearBtn = document.getElementById('txSearchClearBtn');
+  const searchAllMonthsChk = document.getElementById('txSearchAllMonths');
 
   if (!container) return;
 
-  let list = monthFilteredTransactions;
+  const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  const searchAllMonths = searchAllMonthsChk ? searchAllMonthsChk.checked : false;
+
+  // Toggle clear search button visibility
+  if (clearBtn) {
+    clearBtn.style.display = searchQuery ? 'inline-block' : 'none';
+  }
+
+  // Base list: either all history or current month
+  let list = (searchQuery && searchAllMonths) ? allTransactions : monthFilteredTransactions;
+
+  // Apply payment method / category filter
   if (filterMethod === 'EMERGENCY') {
-    list = monthFilteredTransactions.filter(tx => isEmergencyTx(tx));
+    list = list.filter(tx => isEmergencyTx(tx));
   } else if (filterMethod === 'GAS') {
-    list = monthFilteredTransactions.filter(tx => isGasTx(tx));
+    list = list.filter(tx => isGasTx(tx));
   } else if (filterMethod === 'GROCERY') {
-    list = monthFilteredTransactions.filter(tx => isGroceryTx(tx));
+    list = list.filter(tx => isGroceryTx(tx));
   } else if (filterMethod !== 'ALL') {
-    list = monthFilteredTransactions.filter(tx => tx.payment_method === filterMethod);
+    list = list.filter(tx => tx.payment_method === filterMethod);
+  }
+
+  // Apply search query filter (matches description, payment method, date, or amount)
+  if (searchQuery) {
+    list = list.filter(tx => {
+      const desc = (tx.description || '').toLowerCase();
+      const method = (tx.payment_method || '').toLowerCase();
+      const date = (tx.date || '').toLowerCase();
+      const amount = String(tx.amount || '');
+      return desc.includes(searchQuery) || method.includes(searchQuery) || date.includes(searchQuery) || amount.includes(searchQuery);
+    });
   }
 
   const totalAmount = list.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
@@ -773,11 +806,15 @@ function renderTransactions() {
     filteredTotalDisplay.innerText = `BHD ${totalAmount.toFixed(3)}`;
   }
   if (filteredCountDisplay) {
-    filteredCountDisplay.innerText = `${list.length} ${list.length === 1 ? 'Item' : 'Items'}`;
+    const scopeNote = (searchQuery && searchAllMonths) ? ' (All Months)' : '';
+    filteredCountDisplay.innerText = `${list.length} ${list.length === 1 ? 'Item' : 'Items'}${scopeNote}`;
   }
 
   if (list.length === 0) {
-    container.innerHTML = `<p style="text-align: center; color: #888; padding: 20px 0;">No transactions found for this filter.</p>`;
+    const emptyMsg = searchQuery 
+      ? `No transactions matching "${searchQuery}" found${searchAllMonths ? ' across all months' : ' for this month'}.`
+      : 'No transactions found for this filter.';
+    container.innerHTML = `<p style="text-align: center; color: #cbd5e1; padding: 25px 0;">&#x1F50D; ${emptyMsg}</p>`;
     return;
   }
 
@@ -785,16 +822,27 @@ function renderTransactions() {
     const isEmerg = isEmergencyTx(tx);
     const isGroc = isGroceryTx(tx);
 
+    let displayDesc = tx.description || 'No Description';
+    if (searchQuery) {
+      const idx = displayDesc.toLowerCase().indexOf(searchQuery);
+      if (idx !== -1) {
+        const before = displayDesc.substring(0, idx);
+        const match = displayDesc.substring(idx, idx + searchQuery.length);
+        const after = displayDesc.substring(idx + searchQuery.length);
+        displayDesc = `${before}<mark style="background:#facc15; color:#000; padding:1px 3px; border-radius:3px; font-weight:bold;">${match}</mark>${after}`;
+      }
+    }
+
     return `
       <div class="tx-card ${isEmerg ? 'is-emergency' : ''}">
         <div class="tx-info">
           <span class="tx-desc">
-            ${tx.description || 'No Description'}
+            ${displayDesc}
             ${isEmerg ? '<span class="emergency-badge">Emergency</span>' : ''}
             ${(!isEmerg && isGroc) ? '<span style="background: rgba(74, 222, 128, 0.2); color: #4ade80; border: 1px solid #4ade80; font-size: 0.7rem; padding: 1px 6px; border-radius: 10px; margin-left: 6px; font-weight: bold;">Grocery</span>' : ''}
           </span>
           <span class="tx-meta">
-            ${tx.date || ''} • ${tx.payment_method || ''} 
+            ${tx.date || ''} &bull; ${tx.payment_method || ''} 
             ${(tx.payment_method === 'Dolp' || tx.payment_method === 'Monse') ? (tx.is_paid === true ? '<span style="color:#16a34a; font-weight:bold; margin-left:5px;">[PAID]</span>' : '<span style="color:#dc2626; font-weight:bold; margin-left:5px;">[NOT PAID]</span>') : ''}
           </span>
         </div>
@@ -807,6 +855,7 @@ function renderTransactions() {
     `;
   }).join('');
 }
+
 
 function renderHistory() {
   const container = document.getElementById('historyContainer');

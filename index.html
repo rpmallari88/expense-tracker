@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -180,6 +180,17 @@
             <option value="Dolp">Dolp</option>
             <option value="Monse">Monse</option>
           </select>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 6px; position: relative;">
+          <input type="text" id="txSearchInput" placeholder="&#x1F50D; Search (e.g. lulu, gas, cold store)..." oninput="renderTransactions()" style="padding: 5px 28px 5px 10px; border-radius: 6px; border: 1px solid rgba(250, 204, 21, 0.5); background: rgba(0, 0, 0, 0.45); color: #f8fafc; font-size: 0.85rem; min-width: 190px;">
+          <button type="button" id="txSearchClearBtn" onclick="clearTxSearch()" style="position: absolute; right: 8px; background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.9rem; display: none;" title="Clear search">&times;</button>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem; color: #cbd5e1; cursor: pointer;">
+          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 0;">
+            <input type="checkbox" id="txSearchAllMonths" onchange="renderTransactions()" style="cursor: pointer; margin: 0;"> Search All Months
+          </label>
         </div>
       </div>
 
