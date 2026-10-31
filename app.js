@@ -2510,12 +2510,18 @@ function renderCarServices() {
   }).join('');
 }
 
-// Set default fuel date to today on load
+// Set default fuel date and service date to today on load
 const fuelDateInput = document.getElementById('fuelDate');
 if (fuelDateInput && !fuelDateInput.value) {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   fuelDateInput.value = d.toISOString().split('T')[0];
+}
+const serviceDateInput = document.getElementById('serviceDate');
+if (serviceDateInput && !serviceDateInput.value) {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  serviceDateInput.value = d.toISOString().split('T')[0];
 }
 
 // Auto-detect location via phone/browser GPS or IP fallback
@@ -2668,6 +2674,7 @@ if (fuelForm) {
           const payMethod = document.getElementById('fuelPaymentMethod') ? document.getElementById('fuelPaymentMethod').value : 'Credit Card';
 
           if (autoAddTx && autoAddTx.checked) {
+            const isEmergVal = document.getElementById('fuelIsEmergency') ? document.getElementById('fuelIsEmergency').checked : false;
             const txDesc = stationVal ? `Bapco gas (${stationVal})` : 'Bapco gas';
             const year_month = dateVal.substring(0, 7);
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -2677,7 +2684,7 @@ if (fuelForm) {
               description: txDesc,
               amount: costVal,
               payment_method: payMethod,
-              is_emergency: false,
+              is_emergency: isEmergVal,
               is_paid: true,
               year_month: year_month,
               user_id: user ? user.id : null
@@ -2698,6 +2705,8 @@ if (fuelForm) {
           document.getElementById('fuelDate').value = d.toISOString().split('T')[0];
           if (document.getElementById('fuelAutoAddTx')) document.getElementById('fuelAutoAddTx').checked = true;
           if (document.getElementById('fuelPaymentMethod')) document.getElementById('fuelPaymentMethod').style.display = 'inline-block';
+          if (document.getElementById('fuelEmergencyLabel')) document.getElementById('fuelEmergencyLabel').style.display = 'flex';
+          if (document.getElementById('fuelIsEmergency')) document.getElementById('fuelIsEmergency').checked = false;
         } else {
           alert(error.message);
         }
@@ -2830,8 +2839,43 @@ if (serviceForm) {
         }]);
 
         if (!error) {
+          // If "Add to Expenses" is checked, automatically insert into transactions table
+          const autoAddTx = document.getElementById('serviceAutoAddTx');
+          const payMethod = document.getElementById('servicePaymentMethod') ? document.getElementById('servicePaymentMethod').value : 'Credit Card';
+
+          if (autoAddTx && autoAddTx.checked) {
+            const isEmergVal = document.getElementById('serviceIsEmergency') ? document.getElementById('serviceIsEmergency').checked : false;
+            const txDesc = `Car: ${titleVal} (${catVal})`;
+            const year_month = dateVal.substring(0, 7);
+            const { data: { user } } = await supabaseClient.auth.getUser();
+
+            const { data: txData, error: txError } = await supabaseClient.from('transactions').insert([{
+              date: dateVal,
+              description: txDesc,
+              amount: costVal,
+              payment_method: payMethod,
+              is_emergency: isEmergVal,
+              is_paid: true,
+              year_month: year_month,
+              user_id: user ? user.id : null
+            }]).select();
+
+            if (!txError && txData && txData.length > 0) {
+              await logTransactionHistory('CREATED', txData[0], `Auto-added car service expense: ${txDesc} (${costVal} BHD via ${payMethod})`);
+              await fetchTransactions();
+              applyFilters();
+            }
+          }
+
           await fetchCarServices();
           serviceForm.reset();
+          const d = new Date();
+          d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+          document.getElementById('serviceDate').value = d.toISOString().split('T')[0];
+          if (document.getElementById('serviceAutoAddTx')) document.getElementById('serviceAutoAddTx').checked = true;
+          if (document.getElementById('servicePaymentMethod')) document.getElementById('servicePaymentMethod').style.display = 'inline-block';
+          if (document.getElementById('serviceEmergencyLabel')) document.getElementById('serviceEmergencyLabel').style.display = 'flex';
+          if (document.getElementById('serviceIsEmergency')) document.getElementById('serviceIsEmergency').checked = false;
         } else {
           alert(error.message);
         }
@@ -2885,7 +2929,19 @@ async function deleteService(id) {
 function toggleFuelPaymentMethod() {
   const chk = document.getElementById('fuelAutoAddTx');
   const sel = document.getElementById('fuelPaymentMethod');
-  if (chk && sel) {
-    sel.style.display = chk.checked ? 'inline-block' : 'none';
+  const emerg = document.getElementById('fuelEmergencyLabel');
+  if (chk) {
+    if (sel) sel.style.display = chk.checked ? 'inline-block' : 'none';
+    if (emerg) emerg.style.display = chk.checked ? 'flex' : 'none';
+  }
+}
+
+function toggleServicePaymentMethod() {
+  const chk = document.getElementById('serviceAutoAddTx');
+  const sel = document.getElementById('servicePaymentMethod');
+  const emerg = document.getElementById('serviceEmergencyLabel');
+  if (chk) {
+    if (sel) sel.style.display = chk.checked ? 'inline-block' : 'none';
+    if (emerg) emerg.style.display = chk.checked ? 'flex' : 'none';
   }
 }
