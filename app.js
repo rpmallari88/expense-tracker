@@ -2524,14 +2524,43 @@ if (serviceDateInput && !serviceDateInput.value) {
   serviceDateInput.value = d.toISOString().split('T')[0];
 }
 
-// Auto-detect location via phone/browser GPS or IP fallback
+// Known Bahrain Petrol Stations dataset (Official coordinates with friendly Waze/local names)
+const BAHRAIN_PETROL_STATIONS = [{"name":"Hidd Petrol Station (Hidd)","lat":26.24108,"lon":50.65763},{"name":"Hidd Industrial Petrol Station","lat":26.22405,"lon":50.67868},{"name":"Busaiteen Petrol Station (Busaiteen)","lat":26.26744,"lon":50.60207},{"name":"Muharraq Club Petrol Station (Arad)","lat":26.25847,"lon":50.62915},{"name":"Qalali Petrol Station (Amwaj / Qalali)","lat":26.27932,"lon":50.64502},{"name":"Central Market Petrol Station (Manama)","lat":26.22767,"lon":50.56314},{"name":"Al Najem Petrol Station (Manama)","lat":26.2304,"lon":50.56886},{"name":"Okay Petrol Station (Hoora)","lat":26.23172,"lon":50.58968},{"name":"Al Adliyah Petrol Station (Mahooz)","lat":26.21087,"lon":50.58735},{"name":"Al Mudaifa Petrol Station (Umm Al Hassam)","lat":26.20731,"lon":50.59732},{"name":"Sehla Petrol Station (Sehla)","lat":26.20236,"lon":50.53658},{"name":"Benzena Petrol Station (Jasra)","lat":26.18304,"lon":50.48203},{"name":"Al Shorooq Petrol Station (Nuwaidrat)","lat":26.12772,"lon":50.59752},{"name":"Tubli Petrol Station (Tubli)","lat":26.1972,"lon":50.55746},{"name":"Salmabad Petrol Station (Salmabad)","lat":26.18649,"lon":50.519},{"name":"Zayed Town Petrol Station (Zayed Town)","lat":26.16768,"lon":50.54249},{"name":"A\u0027ali Petrol Station (A\u0027ali)","lat":26.15191,"lon":50.52816},{"name":"East Riffa Petrol Station (East Riffa)","lat":26.11216,"lon":50.57647},{"name":"West Riffa Petrol Station (West Riffa)","lat":26.12938,"lon":50.54981},{"name":"Al Oola Petrol Station (Riffa)","lat":26.12268,"lon":50.59005},{"name":"Al Estiqlal Petrol Station (Sanad / Isa Town)","lat":26.14971,"lon":50.57391},{"name":"Awali Petrol Station (Awali)","lat":26.09813,"lon":50.54413},{"name":"Sharq Awali Petrol Station (Awali)","lat":26.0975,"lon":50.54898},{"name":"Hamad Town Petrol Station (Roundabout 2)","lat":26.1326,"lon":50.49358},{"name":"Al Rawdah Petrol Station (Hamad Town)","lat":26.11276,"lon":50.50016},{"name":"Al Wadi Petrol Station (Hamad Town)","lat":26.097,"lon":50.50775},{"name":"In \u0026 Out Petrol Station (Hidd)","lat":26.22584,"lon":50.65708},{"name":"Muharraq Petrol Station (Muharraq)","lat":26.24699,"lon":50.60943},{"name":"Al Sayh Petrol Station (Busaiteen)","lat":26.28101,"lon":50.59745},{"name":"Yateem Petrol Station (Salmaniya)","lat":26.22668,"lon":50.58247},{"name":"Al Fateh Petrol Station (Juffair)","lat":26.21643,"lon":50.60892},{"name":"Adhari Petrol Station (Khamis)","lat":26.199,"lon":50.55274},{"name":"Al Rumaihi Petrol Station (Daih)","lat":26.20606,"lon":50.53957},{"name":"Hawar Petrol Station (Budaiya Hwy, Daih)","lat":26.21944,"lon":50.53509},{"name":"Al Seef Petrol Station (Seef)","lat":26.23794,"lon":50.534},{"name":"Saar Petrol Station (Saar)","lat":26.21626,"lon":50.48069},{"name":"The Station (Janabiya)","lat":26.18243,"lon":50.46822},{"name":"Salman City Petrol Station","lat":26.22723,"lon":50.446},{"name":"Al Waha Petrol Station (Sitra)","lat":26.1777,"lon":50.60995},{"name":"Isa Town Petrol Station (Isa Town)","lat":26.17122,"lon":50.55137},{"name":"Wadi Al Sail Petrol Station (Riffa)","lat":26.13636,"lon":50.521},{"name":"Al Maydan Petrol Station (Askar)","lat":26.10346,"lon":50.60087},{"name":"Al Sakhir Petrol Station (Sakhir)","lat":26.03539,"lon":50.53635},{"name":"Oil Kingdom Petrol Station (Hamala)","lat":26.16646,"lon":50.46596},{"name":"Malkiya Petrol Station (Malkiya)","lat":26.10312,"lon":50.49803},{"name":"Sakhir Petrol Station (BIC)","lat":26.04934,"lon":50.49945},{"name":"Formula Petrol Station (Zallaq / BIC)","lat":26.02317,"lon":50.49154},{"name":"Nuzha Petrol Station (Hamad Town)","lat":26.06177,"lon":50.50724},{"name":"Bapco Station (Diyar Al Muharraq)","lat":26.26611,"lon":50.61591},{"name":"Lulu Petrol Station (Naim, Manama)","lat":26.22337,"lon":50.57141},{"name":"Al Hoora Petrol Station (Hoora)","lat":26.23356,"lon":50.59586},{"name":"Al Khamis Petrol Station (Bilad Al Qadeem)","lat":26.20722,"lon":50.55192},{"name":"Sanabis Petrol Station (Sanabis)","lat":26.22813,"lon":50.54589},{"name":"Jawad Petrol Station (Barbar)","lat":26.22388,"lon":50.52171},{"name":"Juma Petrol Station (Shakhurah)","lat":26.21766,"lon":50.52637},{"name":"Sitra Petrol Station (Sitra)","lat":26.16482,"lon":50.60556},{"name":"Riffa Petrol Station (Bukowarah)","lat":26.13651,"lon":50.57176},{"name":"Hayan Valley Petrol Station (Jaww)","lat":26.02435,"lon":50.60905}];
+
+function getGeoDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function findNearestPetrolStation(lat, lon) {
+  let nearest = null;
+  let minDistance = Infinity;
+
+  for (const st of BAHRAIN_PETROL_STATIONS) {
+    const dist = getGeoDistanceKm(lat, lon, st.lat, st.lon);
+    if (dist < minDistance) {
+      minDistance = dist;
+      nearest = st;
+    }
+  }
+
+  return { station: nearest, distanceKm: minDistance };
+}
+
+// Auto-detect location via phone/browser GPS with Waze-style Petrol Station detection
 async function detectFuelLocation() {
   const stationInput = document.getElementById('fuelStation');
   const btn = event && event.target ? event.target : null;
-  const originalBtnText = btn ? btn.innerText : '📍 Detect';
+  const originalBtnText = btn ? btn.innerText : 'ðŸ“ Detect';
 
-  if (btn) btn.innerText = '⌛ Locating...';
-  stationInput.placeholder = 'Detecting location via GPS...';
+  if (btn) btn.innerText = 'âŒ› Locating...';
+  stationInput.placeholder = 'Detecting nearest petrol station...';
 
   const finishWithCity = (cityName) => {
     stationInput.value = cityName;
@@ -2544,8 +2573,15 @@ async function detectFuelLocation() {
     try {
       const r = await fetch('https://ipapi.co/json/');
       const d = await r.json();
+      if (d && (d.latitude && d.longitude)) {
+        const nearestMatch = findNearestPetrolStation(Number(d.latitude), Number(d.longitude));
+        if (nearestMatch.station && nearestMatch.distanceKm <= 5.0) {
+          finishWithCity(nearestMatch.station.name);
+          return;
+        }
+      }
       if (d && (d.city || d.region)) {
-        finishWithCity(`${d.city || d.region}, Bahrain`);
+        finishWithCity(Bapco ());
         return;
       }
     } catch (e) {}
@@ -2561,28 +2597,50 @@ async function detectFuelLocation() {
     async (pos) => {
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
+
+      // 1. Check if we are near any known Bahrain petrol station (within 2.5 km)
+      const nearestMatch = findNearestPetrolStation(lat, lon);
+      if (nearestMatch.station && nearestMatch.distanceKm <= 2.5) {
+        finishWithCity(nearestMatch.station.name);
+        return;
+      }
+
+      // 2. Otherwise reverse geocode using clean local neighborhood names (e.g. Juffair, Mahooz, Seef, Adliya)
       try {
         const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`);
         const data = await resp.json();
         if (data && data.address) {
           const addr = data.address;
-          const place = addr.amenity || addr.fuel || addr.road || '';
-          const city = addr.city || addr.town || addr.village || addr.suburb || addr.county || 'Bahrain';
-          const formatted = place ? `${place}, ${city}` : city;
-          finishWithCity(formatted);
+          const neighborhood = addr.neighbourhood || addr.suburb || addr.quarter || addr.residential || addr.city_district;
+          const city = addr.city || addr.town || addr.village || addr.county || 'Bahrain';
+          
+          let displayLocation = '';
+          if (neighborhood) {
+            displayLocation = `Bapco (${neighborhood})`;
+          } else if (nearestMatch.station && nearestMatch.distanceKm <= 5.0) {
+            displayLocation = nearestMatch.station.name;
+          } else {
+            displayLocation = `Bapco (${city})`;
+          }
+          finishWithCity(displayLocation);
+        } else if (nearestMatch.station) {
+          finishWithCity(nearestMatch.station.name);
         } else {
-          finishWithCity(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+          finishWithCity('Bapco, Bahrain');
         }
       } catch (err) {
-        await fallbackIpLocation();
+        if (nearestMatch.station && nearestMatch.distanceKm <= 5.0) {
+          finishWithCity(nearestMatch.station.name);
+        } else {
+          await fallbackIpLocation();
+        }
       }
     },
     async (err) => {
-      // If user denied permission or on laptop without GPS hardware, fallback smoothly to IP
       console.warn('GPS position error, falling back to IP:', err.message);
       await fallbackIpLocation();
     },
-    { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
   );
 }
 
