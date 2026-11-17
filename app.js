@@ -2130,6 +2130,8 @@ let fuelLogs = [];
 let carServices = [];
 let editFuelId = null;
 let editServiceId = null;
+let oldFuelBeforeEdit = null;
+let oldServiceBeforeEdit = null;
 
 function switchCarSubTab(sub) {
   const fuelBtn = document.getElementById('carSubTabFuelBtn');
@@ -2581,7 +2583,7 @@ async function detectFuelLocation() {
         }
       }
       if (d && (d.city || d.region)) {
-        finishWithCity(Bapco ());
+        finishWithCity(`Bapco (${d.city || d.region})`);
         return;
       }
     } catch (e) {}
@@ -2707,6 +2709,47 @@ if (fuelForm) {
         }).eq('id', editFuelId);
 
         if (!error) {
+          // Synchronize matching transaction in transactions table if it exists
+          if (oldFuelBeforeEdit && typeof allTransactions !== 'undefined' && Array.isArray(allTransactions)) {
+            const oldCostNum = Number(oldFuelBeforeEdit.total_cost || 0);
+            const oldDateStr = (oldFuelBeforeEdit.date || '').substring(0, 10);
+            const matchingTx = allTransactions.find(t => {
+              const tDate = (t.date || '').substring(0, 10);
+              const tAmt = Number(t.amount || 0);
+              const desc = (t.description || '').toLowerCase();
+              const isGas = desc.includes('bapco') || desc.includes('gas') || desc.includes('petrol') || desc.includes('fuel');
+              return tDate === oldDateStr && Math.abs(tAmt - oldCostNum) < 0.005 && isGas;
+            });
+
+            if (matchingTx) {
+              const newDesc = stationVal ? `Bapco gas (${stationVal})` : 'Bapco gas';
+              const payMethod = document.getElementById('fuelPaymentMethod') ? document.getElementById('fuelPaymentMethod').value : matchingTx.payment_method;
+              const isEmergVal = document.getElementById('fuelIsEmergency') ? document.getElementById('fuelIsEmergency').checked : matchingTx.is_emergency;
+              const year_month = dateVal.substring(0, 7);
+
+              const updatePayload = {
+                date: dateVal,
+                description: newDesc,
+                amount: costVal,
+                year_month: year_month
+              };
+              if (payMethod) updatePayload.payment_method = payMethod;
+              if (typeof isEmergVal === 'boolean') updatePayload.is_emergency = isEmergVal;
+
+              const { data: updatedTxData, error: txUpdateError } = await supabaseClient
+                .from('transactions')
+                .update(updatePayload)
+                .eq('id', matchingTx.id)
+                .select();
+
+              if (!txUpdateError && updatedTxData && updatedTxData.length > 0) {
+                await logTransactionHistory('UPDATED', updatedTxData[0], `Synced gas expense from Car Tab edit: ${newDesc} (${costVal} BHD)`);
+                await fetchTransactions();
+                applyFilters();
+              }
+            }
+          }
+
           await fetchFuelLogs();
           cancelEditFuel();
         } else {
@@ -2783,6 +2826,7 @@ function editFuel(id) {
   if (!item) return;
 
   editFuelId = id;
+  oldFuelBeforeEdit = { ...item };
   const dStr = (item.date || '').substring(0, 10);
   document.getElementById('fuelDate').value = dStr;
   document.getElementById('fuelOdo').value = item.odometer || '';
@@ -2792,12 +2836,35 @@ function editFuel(id) {
   document.getElementById('fuelStation').value = item.station_city || '';
   document.getElementById('fuelIsFull').checked = (item.is_full_tank !== false);
 
+  // If there's a matching transaction, sync the payment method and emergency status in the form if inputs exist
+  if (typeof allTransactions !== 'undefined' && Array.isArray(allTransactions)) {
+    const itemCostNum = Number(item.total_cost || 0);
+    const itemDateStr = (item.date || '').substring(0, 10);
+    const matchingTx = allTransactions.find(t => {
+      const tDate = (t.date || '').substring(0, 10);
+      const tAmt = Number(t.amount || 0);
+      const desc = (t.description || '').toLowerCase();
+      const isGas = desc.includes('bapco') || desc.includes('gas') || desc.includes('petrol') || desc.includes('fuel');
+      return tDate === itemDateStr && Math.abs(tAmt - itemCostNum) < 0.005 && isGas;
+    });
+
+    if (matchingTx) {
+      if (document.getElementById('fuelPaymentMethod') && matchingTx.payment_method) {
+        document.getElementById('fuelPaymentMethod').value = matchingTx.payment_method;
+      }
+      if (document.getElementById('fuelIsEmergency')) {
+        document.getElementById('fuelIsEmergency').checked = !!matchingTx.is_emergency;
+      }
+    }
+  }
+
   document.getElementById('fuelSubmitBtn').innerText = 'Update Fill-up';
   document.getElementById('fuelCancelBtn').style.display = 'inline-block';
 }
 
 function cancelEditFuel() {
   editFuelId = null;
+  oldFuelBeforeEdit = null;
   if (fuelForm) fuelForm.reset();
   if (fuelLitresInput) fuelLitresInput.value = '';
   document.getElementById('fuelSubmitBtn').innerText = 'Add Fill-up';
@@ -2878,6 +2945,48 @@ if (serviceForm) {
 
         const { error } = await supabaseClient.from('car_services').update(updatePayload).eq('id', editServiceId);
         if (!error) {
+          // Synchronize matching transaction in transactions table if it exists
+          if (oldServiceBeforeEdit && typeof allTransactions !== 'undefined' && Array.isArray(allTransactions)) {
+            const oldCostNum = Number(oldServiceBeforeEdit.cost || 0);
+            const oldDateStr = (oldServiceBeforeEdit.date || '').substring(0, 10);
+            const oldTitle = (oldServiceBeforeEdit.title || '').toLowerCase();
+            const matchingTx = allTransactions.find(t => {
+              const tDate = (t.date || '').substring(0, 10);
+              const tAmt = Number(t.amount || 0);
+              const desc = (t.description || '').toLowerCase();
+              const isCarSrv = desc.includes('car:') || desc.includes('service') || desc.includes(oldTitle);
+              return tDate === oldDateStr && Math.abs(tAmt - oldCostNum) < 0.005 && isCarSrv;
+            });
+
+            if (matchingTx) {
+              const newDesc = `Car: ${titleVal} (${catVal})`;
+              const payMethod = document.getElementById('servicePaymentMethod') ? document.getElementById('servicePaymentMethod').value : matchingTx.payment_method;
+              const isEmergVal = document.getElementById('serviceIsEmergency') ? document.getElementById('serviceIsEmergency').checked : matchingTx.is_emergency;
+              const year_month = dateVal.substring(0, 7);
+
+              const txPayload = {
+                date: dateVal,
+                description: newDesc,
+                amount: costVal,
+                year_month: year_month
+              };
+              if (payMethod) txPayload.payment_method = payMethod;
+              if (typeof isEmergVal === 'boolean') txPayload.is_emergency = isEmergVal;
+
+              const { data: updatedTxData, error: txUpdateError } = await supabaseClient
+                .from('transactions')
+                .update(txPayload)
+                .eq('id', matchingTx.id)
+                .select();
+
+              if (!txUpdateError && updatedTxData && updatedTxData.length > 0) {
+                await logTransactionHistory('UPDATED', updatedTxData[0], `Synced car service expense from Car Tab edit: ${newDesc} (${costVal} BHD)`);
+                await fetchTransactions();
+                applyFilters();
+              }
+            }
+          }
+
           await fetchCarServices();
           cancelEditService();
         } else {
@@ -2952,6 +3061,7 @@ function editService(id) {
   if (!item) return;
 
   editServiceId = id;
+  oldServiceBeforeEdit = { ...item };
   document.getElementById('serviceTitle').value = item.title || '';
   document.getElementById('serviceDate').value = item.date || '';
   document.getElementById('serviceOdo').value = item.odometer || '';
@@ -2959,12 +3069,36 @@ function editService(id) {
   document.getElementById('serviceCategory').value = item.category || 'Service';
   document.getElementById('serviceNotes').value = item.notes || '';
 
+  // If there's a matching transaction, sync the payment method and emergency status in the form if inputs exist
+  if (typeof allTransactions !== 'undefined' && Array.isArray(allTransactions)) {
+    const itemCostNum = Number(item.cost || 0);
+    const itemDateStr = (item.date || '').substring(0, 10);
+    const itemTitle = (item.title || '').toLowerCase();
+    const matchingTx = allTransactions.find(t => {
+      const tDate = (t.date || '').substring(0, 10);
+      const tAmt = Number(t.amount || 0);
+      const desc = (t.description || '').toLowerCase();
+      const isCarSrv = desc.includes('car:') || desc.includes('service') || desc.includes(itemTitle);
+      return tDate === itemDateStr && Math.abs(tAmt - itemCostNum) < 0.005 && isCarSrv;
+    });
+
+    if (matchingTx) {
+      if (document.getElementById('servicePaymentMethod') && matchingTx.payment_method) {
+        document.getElementById('servicePaymentMethod').value = matchingTx.payment_method;
+      }
+      if (document.getElementById('serviceIsEmergency')) {
+        document.getElementById('serviceIsEmergency').checked = !!matchingTx.is_emergency;
+      }
+    }
+  }
+
   document.getElementById('serviceSubmitBtn').innerText = 'Update Service';
   document.getElementById('serviceCancelBtn').style.display = 'inline-block';
 }
 
 function cancelEditService() {
   editServiceId = null;
+  oldServiceBeforeEdit = null;
   if (serviceForm) serviceForm.reset();
   document.getElementById('serviceSubmitBtn').innerText = 'Add Service';
   document.getElementById('serviceCancelBtn').style.display = 'none';
